@@ -98,6 +98,19 @@ table.dst td{font-size:12px;vertical-align:top}
 .mrready-grid{grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr))}
 .bfgrid{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
 #snPanel table.tbl{display:block;overflow-x:auto;max-width:100%}
+.mthead{font-size:13px;color:var(--ink-soft);margin-bottom:4px}
+.mthead b{color:var(--ink)}
+.mtgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(150px,100%),1fr));gap:8px}
+.mtpick{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;border:1px solid #2F6FD6;border-left:5px solid #2F6FD6;border-radius:6px;padding:7px 10px;background:rgba(47,111,214,.08);cursor:pointer;font:inherit;color:inherit}
+.mtpick.came{border-color:#E8A7A0;border-left-color:#FF6B5E;background:rgba(255,107,94,.07)}
+.mtn{font-family:'Roboto Mono',monospace;font-size:22px;font-weight:700;letter-spacing:.12em;line-height:1.1}
+.mtpick.came .mtn{text-decoration:line-through;text-decoration-color:#FF6B5E}
+.mttags{display:flex;gap:3px}
+.mttags i,.mtfoot i{font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff}
+.mtH{background:#C0392B}.mtB{background:#6B4E16}.mtS{background:#2F6FD6}.mtM{background:#1D6B3F}
+.mtst{font-size:11px;color:var(--ink-soft)}
+.mtpick.came .mtst{color:#B8362B}
+.mtfoot{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--ink-soft);margin-top:10px}
 </style>
 <div class="mast"><div class="mast-in">
   <h1>Almanac Convergence</h1>
@@ -261,6 +274,13 @@ table.dst td{font-size:12px;vertical-align:top}
 </div>
 
 <div class="card">
+  <h2>Matches <span class="count">numbers on more than one list today</span></h2>
+  <div class="panelbody" id="mtPanel">
+    <div id="mtOut"><div class="empty">Add a day to begin.</div></div>
+  </div>
+</div>
+
+<div class="card">
   <h2>Pairs out <span class="count" id="pairCount"></span></h2>
   <div class="panelbody">
     <div class="controls" style="margin-top:0;margin-bottom:10px">
@@ -398,5 +418,5 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
 
 </div>
 
-<script src="app-23.js?v=7a56f14"></script>
+<script src="app-23.js?v=matches4"></script>
 </body></html>

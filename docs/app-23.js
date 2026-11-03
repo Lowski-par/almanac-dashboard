@@ -3611,6 +3611,7 @@ function relFired(v, W){
    is the one to play. 554 -> 004 559 009: once 559 and 004 pay, 009 is ready.
    0 of 3 in = waiting, 1 of 3 = warming, 2 of 3 = ready, 3 of 3 = done. */
 const MR = { showAll: false, showWarm: false };
+let MR_READY = [];
 function mrScope(){ return (document.getElementById('mrScope')||{}).value || 'any'; }
 function mrTrack(){ return parseInt((document.getElementById('mrTrack')||{}).value, 10) || 7; }
 function mrShowAll(){ MR.showAll = !MR.showAll; renderMirror(); }
@@ -3731,6 +3732,8 @@ function renderMirror(){
     if(D.straight) came.push(e); else if(D.stage >= 2) ready.push(e); else if(D.stage === 1) warm.push(e); else wait.push(e);
   }));
   ready.sort((a,b)=> b.readyAt.o - a.readyAt.o || b.nHere - a.nHere);
+  /* the blue "ready" numbers, boxed, for the Matches panel */
+  MR_READY = [...new Set(ready.flatMap(D => D.o.set.map(sortD)))];
   warm.sort((a,b)=> b.from.length - a.from.length || b.nHere - a.nHere || b.src.o - a.src.o);
   came.sort((a,b)=> b.straight.o - a.straight.o);
 
@@ -4136,3 +4139,77 @@ function renderDateSum(){
 { const _r5 = render; render = function(){ const r = _r5.apply(this, arguments); try{ renderDateSum(); }catch(e){ console.error(e); } return r; }; }
 { const e = document.getElementById('dsDay'); if(e && !e.value) e.value = todayISO(); }
 try{ renderDateSum(); }catch(e){}
+
+/* ===== Matches =====
+   Numbers that show up on more than one of the four lists for the day: Hottest numbers (H),
+   Book convergence where every ticked book agrees (B), the Date Sum group with the Date Sum
+   panel's own settings (S), and the Mirror Rundown's blue ready numbers (M). To stay short it
+   only keeps a number that is on Hottest or Mirror ready plus at least one more list.
+   The first list seen each day is saved in this browser so the scorecard grades it against
+   what came. Tested Oct 30 - Nov 2 before it went in: no better than chance, but it cuts the
+   play list to a handful a day. */
+const MT_KEY = 'matches_v1';
+const MT_NAMES = { H:'Hottest', B:'Books agree', S:'Date sum', M:'Mirror ready' };
+function mtStore(v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(MT_KEY)) || {}; localStorage.setItem(MT_KEY, JSON.stringify(v)); }catch(e){ return {}; } }
+function mtCame(day){
+  const e = (DB.dayLog||[]).find(x => x.date === day), out = {};
+  if(e) Object.entries(e.dayStates||{}).forEach(([c, ns]) => ns.forEach(n => (out[sortD(n)] = out[sortD(n)] || []).push(nm(c))));
+  return { came: out, nDraw: e ? Object.values(e.dayStates||{}).reduce((a, ns) => a + ns.length, 0) : 0 };
+}
+function mtLists(day){
+  const lv = Object.keys(lastConvKeys||{}).map(Number).sort((a,b) => b-a);
+  const { sum } = dsDateSum(day, dsWithYear()), root = dsUseRoot();
+  return {
+    H: new Set((lastHeatNums||[]).map(sortD)),
+    B: new Set(((lastConvKeys||{})[lv[0]]||[]).map(sortD)),
+    S: new Set(Object.values(dsList(3, sum, root).byWays).flat()),
+    M: new Set(MR_READY || []),
+    sum, root, booksLv: lv[0] || 0
+  };
+}
+function renderMatches(){
+  const out = document.getElementById('mtOut'); if(!out) return;
+  const day = (VIEW && VIEW.day) ? VIEW.day : todayISO();
+  const L = mtLists(day);
+  const seen = {};
+  ['H','B','S','M'].forEach(t => L[t].forEach(k => (seen[k] = seen[k] || []).push(t)));
+  const picks = Object.entries(seen).filter(([k, ts]) => ts.length >= 2 && (ts.includes('H') || ts.includes('M')))
+    .sort((a, b) => b[1].length - a[1].length || (b[1].includes('H') && b[1].includes('M')) - (a[1].includes('H') && a[1].includes('M')) || (a[0] < b[0] ? -1 : 1));
+  const { came } = mtCame(day);
+  const lab = iso => new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  /* save the day's list for the scorecard: only once the automatic results are in and current,
+     and keep refreshing it until that day's first draw arrives, so it grades the morning list */
+  const lastLogged = (DB.dayLog[DB.dayLog.length-1]||{}).date || '';
+  if(!VIEW && FEED_STATE.ok && lastLogged >= isoAdd(day, -1)){
+    const st = mtStore();
+    if(!mtCame(day).nDraw || !st[day]){ st[day] = picks.map(p => p[0]); mtStore(st); }
+  }
+  let h = '<div class="mthead">For <b>'+lab(day)+'</b> &middot; date '+(L.root ? 'root' : 'sum')+' <b>'+(L.root ? dsRoot(L.sum) : L.sum)+'</b></div>';
+  if(!picks.length) h += '<div class="empty">Nothing lines up today &mdash; no Hottest or Mirror-ready number is on a second list.</div>';
+  else [4, 3, 2].forEach(n => {
+    const grp = picks.filter(p => p[1].length === n); if(!grp.length) return;
+    h += '<div class="sub-h">'+(n === 4 ? 'On all 4 lists' : 'On '+n+' lists')+'</div><div class="mtgrid">'+
+      grp.map(([k, ts]) => {
+        const c = came[k];
+        return '<button type="button" class="mtpick'+(c ? ' came' : '')+'" onclick="openLookup(\''+k+'\')" title="'+ts.map(t => MT_NAMES[t]).join(' + ')+(c ? ' &middot; came in '+c.join(', ') : '')+'">'+
+          '<span class="mtn">'+k+'</span><span class="mttags">'+ts.map(t => '<i class="mt'+t+'">'+t+'</i>').join('')+'</span>'+
+          '<span class="mtst">'+(c ? '&#10005; came '+c.slice(0,2).join(', ')+(c.length > 2 ? ' +'+(c.length-2) : '') : '&#10003; not yet')+'</span></button>';
+      }).join('')+'</div>';
+  });
+  /* scorecard: each saved day's list against what came that day */
+  const st = mtStore(); let n = 0, hit = 0, exp = 0, days = 0;
+  Object.keys(st).filter(d => d < todayISO()).forEach(d => {
+    const { came: cd, nDraw } = mtCame(d); if(!nDraw) return; days++;
+    st[d].forEach(k => { n++; if(cd[k]) hit++; exp += 1 - Math.pow(1 - (PERM_COUNT[k]||0)/1000, nDraw); });
+  });
+  h += '<div class="mtfoot"><span><i class="mtH">H</i> Hottest &nbsp;<i class="mtB">B</i> Books agree &nbsp;<i class="mtS">S</i> Date sum &nbsp;<i class="mtM">M</i> Mirror ready</span>'+
+    '<span>'+(days ? 'Your record, '+days+' day'+(days > 1 ? 's' : '')+': <b>'+hit+' of '+n+'</b> came &middot; chance '+exp.toFixed(1) : 'Your record starts with today&rsquo;s list.')+
+    ' &middot; Tested Oct 30&ndash;Nov 2: 5 of 28 came, chance 7.7.</span></div>'+
+    '<div class="baseline">A number shows here when it is on <b>Hottest</b> or <b>Mirror ready</b> and at least one more list (the date list follows the Date Sum panel&rsquo;s settings). It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
+  out.innerHTML = h;
+}
+{ const _r6 = render; render = function(){ const r = _r6.apply(this, arguments); try{ renderMatches(); }catch(e){ console.error(e); } return r; }; }
+{ const _rds = renderDateSum; renderDateSum = function(){ const r = _rds.apply(this, arguments); try{ renderMatches(); }catch(e){} return r; }; }
+/* a sync that finds nothing new doesn't redraw the page; every sync ends by updating the status line, so refresh Matches there and the day's list gets saved */
+{ const _rf = renderFeed; renderFeed = function(){ const r = _rf.apply(this, arguments); try{ renderMatches(); }catch(e){} return r; }; }
+try{ renderMatches(); }catch(e){}
