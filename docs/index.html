@@ -119,6 +119,12 @@ table.dst td{font-size:12px;vertical-align:top}
 </div></div>
 
 <div class="wrap">
+<div id="liveLink" style="display:none;background:#FFF4D6;border:2px solid #FF9E4A;padding:10px 12px;margin:0 0 14px;font-size:13px;line-height:1.5;color:#0B1836">
+  <b>This copy doesn&rsquo;t refresh on its own.</b> For results that update all day, open
+  <span style="font-family:'Roboto Mono',monospace;font-weight:700;user-select:all;-webkit-user-select:all">lowski-par.github.io/almanac-dashboard/</span>
+  <button class="ghost" style="margin-left:6px;padding:3px 8px" onclick="navigator.clipboard&&navigator.clipboard.writeText('https://lowski-par.github.io/almanac-dashboard/');this.textContent='Copied'">Copy link</button>
+</div>
+<script>if(!/github\.io$/.test(location.hostname))document.getElementById('liveLink').style.display='block';</script>
 
 <div id="viewBanner" class="viewbanner" style="display:none"></div>
 
