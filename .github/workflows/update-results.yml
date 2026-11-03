@@ -1,0 +1,41 @@
+name: Update lottery results
+
+# Runs the collector on GitHub's own computers - no Claude, no keys, nothing on your Mac.
+# Times are UTC. In Central time: ~8 AM (last night's evenings), ~5:45 PM (middays),
+# ~8:30 PM and ~12:15 AM (evenings).
+on:
+  schedule:
+    - cron: '15 13 * * *'
+    - cron: '45 22 * * *'
+    - cron: '30 1 * * *'
+    - cron: '15 5 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-results
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect the latest draws
+        run: python3 collector/collect.py
+
+      - name: Save the new results
+        run: |
+          if git diff --quiet docs/feed.json; then
+            echo "No new draws."
+            exit 0
+          fi
+          git config user.name "results-bot"
+          git config user.email "results-bot@users.noreply.github.com"
+          git add docs/feed.json
+          git commit -m "Results update $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push

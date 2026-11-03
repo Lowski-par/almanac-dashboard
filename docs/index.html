@@ -1,0 +1,402 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Almanac Convergence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Roboto+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app-1.css">
+<style>.viewbanner{background:#FFF4D6;border:2px solid var(--mark-o);padding:10px 12px;margin:0 0 14px;font-size:13px;color:var(--ink-2)}.viewbanner .vb-h{font-family:Oswald,sans-serif;font-size:13px;letter-spacing:.03em;margin-bottom:4px}.viewbanner .vb-r{font-size:12px;margin-top:3px;line-height:1.5}.vhit{color:var(--pen);font-size:16px}
+.sfhead{font-size:14px;margin-bottom:8px}
+.sfplay{background:#1D6B3F;color:#fff;font-family:Oswald,sans-serif;letter-spacing:.04em;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:15px}
+.sfplay b{font-size:20px;letter-spacing:.08em}
+.sfins{display:block;font-family:inherit;font-size:12px;letter-spacing:0;opacity:.9;margin-top:3px}
+table.sft tr.sftop td{background:#DFF0E4;font-weight:700}
+.sfsub{font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft);margin:14px 0 6px}
+.rnew{font-size:9px;background:#1D6B3F;color:#fff;padding:0 4px;border-radius:3px;margin-left:4px;letter-spacing:.05em}
+.rwide{font-size:9px;border:1px solid var(--ink-soft);color:var(--ink-soft);padding:0 4px;border-radius:3px;margin-left:4px}
+.mrdays{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.mrdays button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.mrdays button small{opacity:.7;font-size:10px}
+.mrboard{display:flex;flex-wrap:wrap;gap:6px}
+.chip.mrbig{font-size:17px;padding:6px 10px;letter-spacing:.1em}
+.mrfams{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-top:4px}
+.mrfam{border:1px solid var(--line, #DCD6C8);border-radius:8px;padding:8px 10px;background:rgba(255,255,255,.5)}
+.mrcols{display:flex;gap:10px;margin-bottom:6px}
+.mrcol{flex:1;min-width:0;border-right:1px dashed rgba(0,0,0,.12);padding-right:8px}
+.mrcol:last-child{border-right:0}
+.mrcolh{font-family:Oswald,sans-serif;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:2px}
+.mrsrc{font-family:'Roboto Mono',monospace;font-size:13px;line-height:1.5}
+.mrsrc b{font-size:16px;letter-spacing:.1em}
+.mrsrc span{font-family:Inter,sans-serif;font-size:11px;color:var(--ink-soft)}
+.mrdue{display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid rgba(0,0,0,.08);padding-top:6px}
+table.mrt td{vertical-align:top;padding:7px 6px}
+table.mrt tr.mrchild td{background:rgba(255,158,74,.07)}
+.chip.hot{border-color:var(--mark-o);box-shadow:inset 0 0 0 1px var(--mark-o)}
+.sfnote{font-size:12px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+.bfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
+.bfcard{border:1px solid var(--rule);border-left:4px solid #1D6B3F;border-radius:6px;padding:8px 10px;background:rgba(255,255,255,.6)}
+.bfcard.done{border-left-color:#FF6B5E;opacity:.75}
+.bftgt{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px}
+.bfwhy{font-size:12px;color:var(--ink-soft);line-height:1.45}
+.bfwhy b{font-family:'Roboto Mono',monospace;color:var(--ink);font-size:13px;letter-spacing:.06em}
+.bfsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0}
+.bfsum div{background:#FBFAF6;border:1px solid var(--rule);padding:9px;text-align:center}
+.bfsum .v{font-family:'Roboto Mono',monospace;font-weight:700;font-size:20px;color:var(--ink)}
+.bfsum .v small{font-size:12px;font-weight:500;opacity:.7}
+.bfsum .l{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
+.bfread{font-size:13px;line-height:1.5;margin:6px 0 10px}
+.bfv{font-size:10px;border:1px solid var(--rule);border-radius:3px;padding:1px 5px;white-space:nowrap;color:var(--ink-soft)}
+.bfv.up{border-color:#1D6B3F;color:#1D6B3F;font-weight:700}
+.bfv.dn{border-color:var(--pen);color:var(--pen)}
+table.bft td{vertical-align:middle;font-size:12px}
+table.bft td.dnum{font-size:14px;letter-spacing:.06em}
+.bfarrow{color:var(--ink-soft)}
+.bfyr{white-space:nowrap}
+.bfwho{font-size:11px;color:var(--ink-soft)}
+.bfhit{display:flex;flex-wrap:wrap;gap:5px}
+@media(max-width:560px){.bfsum .v{font-size:16px}}
+.mrready-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.mrcard{border:1px solid #2F6FD6;border-left:5px solid #2F6FD6;border-radius:6px;padding:8px 10px;background:rgba(47,111,214,.10)}
+.mrcard-n{color:#1F4FA8}
+.mk.ready{color:#2F6FD6}
+.mrcard-n{font-family:'Roboto Mono',monospace;font-size:24px;font-weight:700;letter-spacing:.12em;cursor:pointer;line-height:1.1}
+.mrcard-why{font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.5}
+.mrcard-why b{font-family:'Roboto Mono',monospace;color:var(--ink)}
+.mrcard-age{font-size:11px;color:var(--ink-soft);margin-top:3px}
+.mrsib{display:inline-block;font-family:'Roboto Mono',monospace;font-size:11px;border:1px solid var(--rule);border-radius:3px;padding:0 4px;margin:2px 4px 0 0}
+.mrsib.in{color:#FF6B5E;border-color:#FF6B5E;text-decoration:line-through}
+.chip.mrready{border-color:#2F6FD6;background:rgba(47,111,214,.14);color:#1F4FA8;font-weight:700}
+.mrfold{margin-top:12px}
+.mrfold summary{cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)}
+.mrcard-src{font-size:12px;color:var(--ink-soft)}
+.mrcard-src b{font-family:'Roboto Mono',monospace;font-size:18px;color:var(--ink);letter-spacing:.1em}
+.mrcard-outs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 4px}
+.mrgone{font-family:'Roboto Mono',monospace;font-size:14px;color:#B8362B;text-decoration:line-through;border:1px solid #F0B8B2;border-radius:4px;padding:1px 6px;background:#fff}
+.mrgone .mk{position:static;margin-left:3px;font-size:10px;text-decoration:none;display:inline-block}
+.mrhot{font-family:'Roboto Mono',monospace;font-size:22px;font-weight:700;letter-spacing:.1em;color:#fff;background:#2F6FD6;border-radius:5px;padding:2px 10px;cursor:pointer}
+.dshead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
+.dsdate{font-family:Oswald,sans-serif;font-size:26px;letter-spacing:.04em}
+.dsmath{font-family:'Roboto Mono',monospace;font-size:15px}
+.dsmath b{font-size:20px;color:#2F6FD6}
+.dsplay{font-size:13px;color:var(--ink-soft)}
+.dsrow{font-size:13px;margin:4px 0;display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.dsx{color:var(--ink-soft);font-size:12px}
+.chip.dshit{border-color:#2F6FD6;background:rgba(47,111,214,.10);font-weight:700}
+.dslist{margin:6px 0;border:1px solid var(--rule);border-radius:6px;padding:6px 10px}
+.dslist summary{cursor:pointer;font-size:13px}
+.dsway{margin:6px 0 2px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.dswn{font-size:11px;color:var(--ink-soft);min-width:150px}
+table.dst td{font-size:12px;vertical-align:top}
+.dscame{font-family:'Roboto Mono',monospace;font-size:12px}
+.dscame span{font-family:Inter,sans-serif;font-size:10px;color:var(--ink-soft)}
+.dssum{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:8px 0}
+.dssum>div{background:#FBFAF6;border:1px solid var(--rule);padding:8px 10px}
+.dssum .l{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em}
+.dssum .v{font-family:'Roboto Mono',monospace;font-size:13px;line-height:1.5}
+@media(max-width:560px){.dssum{grid-template-columns:1fr}}
+/* keep the page inside a phone's width: grids shrink their minimum to the card, wide tables scroll in place */
+.mrfams{grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))}
+.mrready-grid{grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr))}
+.bfgrid{grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr))}
+#snPanel table.tbl{display:block;overflow-x:auto;max-width:100%}
+</style>
+<div class="mast"><div class="mast-in">
+  <h1>Almanac Convergence</h1>
+  <div class="sub">Pick-3 · follow-up tracker</div>
+  <div class="src">Follow-up pairs transcribed from Grandma&rsquo;s Almanac (2016 ed.), plus the &plus;246 rundown, mirrors, shifts and pair coverage. Results for every state now arrive automatically each day; paste only to fill or fix a day.</div>
+</div></div>
+
+<div class="wrap">
+
+<div id="viewBanner" class="viewbanner" style="display:none"></div>
+
+<div class="heatwrap"><div class="mast-in">
+  <p class="hh">Hottest numbers &mdash; most convergence</p>
+  <p class="hs">Ranked by how many independent signals point at the same number right now: both almanac relatives landing counts most, then a single relative, mirror, the &plus;246 rundown and digit shifts, plus the Follow Ups and Relative Numbers tables. Red is where the most signals stack up. Adding the two dream-book tables changed the top of this ranking to lift 1.80 over the first four days &mdash; but 6% of randomly-generated book sets beat that, so treat it as under test.</p>
+  <div id="heatBoard" class="heatgrid"><div class="heatempty">Add a day to begin.</div></div>
+  <div class="legend"><span><b>&#9632; Red</b> &mdash; top 6 most converged</span><span><span class="o">&#9632; Orange</span> &mdash; next 6</span><span><b style="color:#FFD84D">AFRGS</b> &mdash; which ticked books point here: <b>A</b>lmanac &rsquo;16/&rsquo;17, <b>F</b>ollow Ups, <b>R</b>elatives, <b>G</b>randma 2025, <b>S</b> = Red Side (yellow = every ticked book)</span><span><b style="color:#FF6B5E">&#10005;</b> came since it was listed &middot; <b style="color:#3FBF6F">&#10003;</b> still hasn&rsquo;t &mdash; hover for when</span><span>&ldquo;sig&rdquo; = distinct signal types, &ldquo;src&rdquo; = separate hits · tap to copy</span></div>
+</div></div>
+
+<div class="card">
+  <div class="feedline" id="feedLine"><span class="fdot"></span><span id="feedText">Connecting to the automatic results&hellip;</span>
+    <button class="ghost" id="feedSync" onclick="syncFeed(true)">Sync now</button></div>
+  <div class="feedconf" id="feedConf"></div>
+  <textarea id="pasteBox" rows="3" placeholder="Only needed to fix or fill a day: paste that day's results and set its Draw date. Your paste replaces those states for that date."></textarea>
+  <div class="controls">
+    <button onclick="addDay()">Add day</button>
+    <label>Draw date <input type="date" id="drawDate" style="width:auto"></label>
+    <label title="Show the whole board as it stood going into this day, marked with what came that day">View board for <input type="date" id="viewDay" style="width:auto" onchange="viewDayChanged()"></label>
+    <button class="ghost" id="viewClear" onclick="clearView()" style="display:none">Back to live</button>
+    <label>Shortlist
+      <select id="topN" onchange="render()">
+        <option>3</option><option selected>5</option><option>8</option><option>12</option>
+      </select>
+    </label>
+    <span class="bklbl">Books
+      <span class="bkbox">
+        <label><input type="checkbox" id="bk16" checked onchange="booksChanged()"> &rsquo;16</label>
+        <label><input type="checkbox" id="bk17" checked onchange="booksChanged()"> &rsquo;17</label>
+        <label><input type="checkbox" id="bkfu" checked onchange="booksChanged()"> Follow Ups</label>
+        <label><input type="checkbox" id="bkrel" checked onchange="booksChanged()"> Relatives</label>
+        <label title="tested 0.92 same-state — lookup-only"><input type="checkbox" id="bk25" checked onchange="booksChanged()"> Grandma 2025</label>
+        <label title="Red Book relatives — tested 1.08 same-state, shuffle 11% — lookup-only; covers 12% of the field per state"><input type="checkbox" id="bkrs" checked onchange="booksChanged()"> Red Side</label>
+      </span>
+    </span>
+    <label>Look back
+      <select id="lookback" onchange="render()">
+        <option value="1">1 day</option>
+        <option value="3">3 days</option>
+        <option value="5">5 days</option>
+        <option value="7" selected>7 days</option>
+        <option value="14">14 days</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="boxMode" checked onchange="render()" style="width:auto"> Match any order (box)</label>
+    <span id="parseStatus" class="status"></span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>What every state drew <span class="count" id="drawsCount"></span></h2>
+  <div class="panelbody" id="drawsPanel">
+  <div class="drawnav">
+    <button class="ghost" id="drawsPrev" onclick="drawsStep(-1)">&larr; Earlier</button>
+    <select id="drawsDate" onchange="DRAWS_DATE=this.value;renderDraws()"></select>
+    <button class="ghost" id="drawsNext" onclick="drawsStep(1)">Later &rarr;</button>
+  </div>
+  <div id="drawsBody"><div class="heatempty">No days yet.</div></div>
+  <div class="drawnote">Today fills in during the day as draws come in (middays by about 5 PM Central, evenings by about 11:30 PM). <span class="dmark">&bull;</span> = from your paste.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Book convergence <span class="count" id="convCount"></span></h2>
+  <div class="panelbody" id="convBody"><div class="empty">Add a day to begin.</div></div>
+  <div class="baseline" id="convBase"></div>
+</div>
+
+<div class="card">
+  <h2>State-specific view <span class="count" id="stCount"></span></h2>
+  <div class="panelbody" id="stPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>State
+        <select id="stSel" onchange="render()"><option value="">&mdash; overview &mdash;</option></select>
+      </label>
+    </div>
+    <div id="stLive"></div>
+    <div id="stScore"></div>
+    <div id="stPerState"></div>
+  </div>
+  <div class="baseline" id="stBase"></div>
+</div>
+
+<div class="card">
+  <h2>State Specific Numbers <span class="count" id="snCount"></span></h2>
+  <div class="panelbody" id="snPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <input id="snLookup" type="hidden" value=""><span style="font-size:12px;color:var(--ink-soft)">Tap a number to open it in <b>Lookup a number</b>.</span>
+      <label>Region
+        <select id="snRegion" onchange="SN_CACHE=null;renderStateNumbers()"><option value="">all states</option><option value="south">South</option><option value="east">East</option><option value="north">North</option><option value="west">West</option><option value="caribbean">Caribbean</option></select>
+      </label>
+      <label>Min states
+        <select id="snMin" onchange="renderStateNumbers()"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option><option value="15">15</option></select>
+      </label>
+    </div>
+    <div id="snLookupOut"></div>
+    <div id="snList"></div>
+    <details class="snfold"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft);margin-top:14px">Forward test &amp; controls (the proof behind this list &mdash; open when you want it)</summary>
+      <div class="controls" style="margin-top:6px"><button class="ghost" onclick="runSnControl()">Run random-book control</button><span id="snCtlStatus" class="status"></span></div>
+      <div id="snScore"></div>
+    </details>
+  </div>
+  <div class="baseline" id="snBase"></div>
+</div>
+
+<div class="card">
+  <h2>Straight Finder <span class="count">which way is longest out</span></h2>
+  <div class="panelbody" id="sfPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>Number <input id="sfBox" inputmode="numeric" maxlength="4" placeholder="234" style="width:80px" oninput="renderStraight()"></label>
+      <label>Draw <select id="sfSlot" onchange="renderStraight()"><option value="m" selected>Midday</option><option value="e">Evening</option><option value="b">Both</option></select></label>
+      <label>Region <select id="sfRegion" onchange="document.getElementById('sfState').value='';renderStraight()"><option value="">All states</option><option>South</option><option>Northeast</option><option>Midwest</option><option>West</option><option>Canada</option><option>Caribbean</option></select></label>
+      <label>State <select id="sfState" onchange="renderStraight()"><option value="">Any</option></select></label>
+    </div>
+    <div id="sfOut"><div class="empty">Type a three-digit (Pick 3) or four-digit (Pick 4) number.</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Mirror &#129703; Rundown <span class="count">a double falls &rarr; play the last mirror once two have come</span></h2>
+  <div class="panelbody" id="mrPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>Follow each double for <select id="mrTrack" onchange="renderMirror()"><option value="3">3 days</option><option value="5">5 days</option><option value="7" selected>7 days</option><option value="10">10 days</option><option value="14">14 days</option></select></label>
+      <label>Count a hit <select id="mrScope" onchange="renderMirror()"><option value="any">in any state</option><option value="same">in the same state only</option></select></label>
+      <span style="font-size:12px;color:var(--ink-soft)">554 &rarr; <b>004</b> &middot; <b>559</b> &middot; <b>009</b>. Wait. When 559 and 004 come straight, <b>009 is ready</b>.</span>
+    </div>
+    <div id="mrOut"><div class="empty">Add a day to begin.</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Brings / Follows <span class="count">when one falls, watch for these &mdash; box or straight</span></h2>
+  <div class="panelbody" id="bfPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>Follows within <select id="bfWin" onchange="renderBringsFollows()"><option value="0">same day</option><option value="1">1 day</option><option value="2">2 days</option><option value="3" selected>3 days</option><option value="7">7 days</option></select></label>
+      <label>Count a hit <select id="bfScope" onchange="renderBringsFollows()"><option value="any">in any state</option><option value="same">in the same state only</option></select></label>
+      <span style="font-size:12px;color:var(--ink-soft)">Green cards are still open &mdash; tap a number to look it up.</span>
+    </div>
+    <div id="bnfOut"><div class="empty">Add a day to begin.</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Date Sum <span class="count">the date&rsquo;s digits added &rarr; that sum&rsquo;s numbers</span></h2>
+  <div class="panelbody" id="dsPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>Day <input type="date" id="dsDay" style="width:auto" onchange="renderDateSum()"></label>
+      <label>Add up <select id="dsCount" onchange="renderDateSum()"><option value="md">month + day</option><option value="year">month + day + year</option></select></label>
+      <label>Play <select id="dsGroup" onchange="renderDateSum()"><option value="sum">the sum</option><option value="root">the root (one digit)</option></select></label>
+    </div>
+    <div id="dsOut"><div class="empty">Add a day to begin.</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Pairs out <span class="count" id="pairCount"></span></h2>
+  <div class="panelbody">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>State <select id="pairState" onchange="renderPairs()"><option value="">&mdash; pick a state &mdash;</option></select></label>
+      <label>Missing in last <input id="pairDays" type="number" min="1" max="365" value="14" style="width:64px" oninput="renderPairs()"> days</label>
+    </div>
+    <div id="pairOut"><div class="empty">Add a day to begin.</div></div>
+    <details style="margin-top:12px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Backfill older days for one state (feeds this panel only)</summary>
+      <div class="controls" style="margin-top:8px">
+        <label>End date <input type="date" id="pairEnd" style="width:auto"></label>
+        <button onclick="addPairBackfill()">Add to pair history</button>
+        <button class="ghost" onclick="undoPairBackfill()">Undo last backfill</button>
+        <span id="pairStatus" class="status"></span>
+      </div>
+      <textarea id="pairBox" rows="6" style="width:100%;margin-top:8px;font-family:'Roboto Mono',monospace;font-size:12px" placeholder="One day per line, newest day first, the state picked above only. Numbers separated by spaces: e.g.  665 896 144
+A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines without one are dated by counting back from the End date. Days already in the main log are skipped."></textarea>
+    </details>
+  </div>
+  <div class="baseline" id="pairBase"></div>
+</div>
+
+<div class="card">
+  <h2>Lookup a number <span class="count">every book, ticked or not</span></h2>
+  <div class="controls" style="margin-top:12px">
+    <input id="lookupBox" placeholder="e.g. 794" maxlength="3" style="width:110px" oninput="doLookup()">
+    <label>Relatives window
+      <select id="relWin" onchange="doLookup()"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select>
+    </label>
+    <label>Region
+      <select id="relRegion" onchange="doLookup()"><option value="">all states</option><option value="south">South</option><option value="east">East</option><option value="north">North</option><option value="west">West</option><option value="caribbean">Caribbean</option></select>
+    </label>
+  </div>
+  <div id="lookupOut" style="margin-top:12px"></div>
+</div>
+
+<div class="card">
+  <h2 id="vibHead">Vibrations <span class="count" id="vibCount"></span></h2>
+  <div class="panelbody" id="vibBody">
+    <div class="vgrid">
+      <div class="vcol">
+        <div class="sub-h" style="margin-top:0">Daily Vibrations <span id="vibDayCount" style="font-family:'Roboto Mono',monospace;text-transform:none;letter-spacing:0;opacity:.75"></span></div>
+        <div class="vdays" id="vibDays"></div>
+      </div>
+      <div class="vcol">
+        <div class="sub-h" style="margin-top:0">Favorite Doubles <span id="vibFdCount" style="font-family:'Roboto Mono',monospace;text-transform:none;letter-spacing:0;opacity:.75"></span></div>
+        <div class="vtiles" id="vibDoubles"></div>
+        <div class="vremain" id="vibDoublesRemain"></div>
+        <div class="vlog" id="vibDoublesLog"></div>
+        <div class="sub-h">4 Digit Vibrations <span id="vibQdCount" style="font-family:'Roboto Mono',monospace;text-transform:none;letter-spacing:0;opacity:.75"></span></div>
+        <div class="vtiles" id="vibQuads"></div>
+        <div class="vremain" id="vibQuadsRemain"></div>
+        <div class="vlog" id="vibQuadsLog"></div>
+        <div class="sub-h">Log Pick 4</div>
+        <textarea id="p4Box" rows="2" placeholder="Paste the day's Pick 4 results across all states — same format as the Pick 3 box above."></textarea>
+        <div class="controls">
+          <input type="date" id="p4Date" style="width:auto">
+          <button class="ghost" onclick="addPick4()">Add Pick 4</button>
+          <button class="ghost" onclick="undoPick4()">Undo</button>
+          <span id="p4Status" class="status"></span>
+        </div>
+        <div class="vlog" id="p4Log"></div>
+      </div>
+    </div>
+    <div id="vibChance"></div>
+  </div>
+  <div class="baseline" id="vibBase"></div>
+</div>
+
+<div class="card">
+  <h2>Relatives that landed <span class="count" id="confCount"></span></h2>
+  <div class="panelbody" id="confirmed"><div class="empty">Add a day to begin.</div></div>
+  <div class="baseline" id="confBase"></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Shortlist</h2>
+    <div class="panelbody" id="playNext"><div class="empty">Add a day to begin.</div></div>
+  </div>
+  <div class="card">
+    <h2>One relative landed <span class="count" id="partCount"></span></h2>
+    <div class="panelbody" id="partial"><div class="empty">Add a day to begin.</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Relatives on the way <span class="count" id="watchCount"></span></h2>
+  <div class="panelbody" id="watchList"><div class="empty">Add a day to begin.</div></div>
+  <div class="baseline" id="watchBase"></div>
+</div>
+
+<div class="card">
+  <h2>Series priming <span class="count" id="seriesCount"></span></h2>
+  <div class="panelbody" id="seriesBody"><div class="empty">Add a day to begin.</div></div>
+  <div class="baseline" id="seriesBase"></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Pairs missing today</h2>
+    <div class="panelbody" id="duePairs"><div class="empty">Add a day to begin.</div></div>
+  </div>
+  <div class="card">
+    <h2>Series &middot; hundreds &middot; triples</h2>
+    <div class="panelbody" id="chainBody"><div class="empty">Add a day to begin.</div></div>
+  </div>
+</div>
+
+
+<details class="card">
+  <summary>History, scorekeeping &amp; backup</summary>
+  <div id="meter" style="margin-top:14px"></div>
+  <div id="almanacScore"></div>
+  <div id="pairAccuracy"></div>
+  <div class="sub-h">Date the older logged days</div>
+  <div class="controls" style="margin-top:4px">
+    <label>Last undated day was <input type="date" id="bfDate"></label>
+    <button class="ghost" onclick="previewDates()">Preview</button>
+    <button class="ghost" onclick="applyDates()">Apply</button>
+    <span id="bfStatus" class="status"></span>
+  </div>
+  <div class="baseline" id="bfOut"></div>
+  <div class="sub-h">States tracked</div>
+  <div id="stateLog" class="empty">No history yet.</div>
+  <div id="backupOut"></div>
+  <div class="controls" style="margin-top:14px">
+    <button class="ghost" id="exportBtn" onclick="exportFile()" style="display:none">Export file</button>
+    <button class="ghost" onclick="copyBackup()">Copy backup</button>
+    <button class="ghost" onclick="document.getElementById('impFile').click()">Import</button>
+    <input type="file" id="impFile" accept=".json" onchange="importHistory(event)" style="display:none">
+    <button class="ghost" onclick="undoLast()">Undo last day</button>
+    <button class="ghost" style="border-color:var(--pen);color:var(--pen)" onclick="clearAll()">Clear all</button>
+  </div>
+</details>
+
+</div>
+
+<script src="app-23.js"></script>
+</body></html>
