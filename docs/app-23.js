@@ -4174,11 +4174,29 @@ function mtCame(day){
   if(e) Object.entries(e.dayStates||{}).forEach(([c, ns]) => ns.forEach(n => (out[sortD(n)] = out[sortD(n)] || []).push(nm(c))));
   return { came: out, nDraw: e ? Object.values(e.dayStates||{}).reduce((a, ns) => a + ns.length, 0) : 0 };
 }
+/* Hottest for every Look back setting (1, 3, 5, 7, 14 days), not just the one picked:
+   boxed number -> the windows it's on. A past-day view keeps the board's own list. */
+const MT_WINS = [1, 3, 5, 7, 14];
+let MT_HOT = null;
+function mtHotAll(){
+  if(VIEW && VIEW.day) return new Map((lastHeatNums||[]).map(n => [sortD(n), [lookback()]]));
+  const key = [DB_REV, DB.dayLog.length, [...booksOn()].sort().join(), boxMode()].join('|');
+  if(MT_HOT && MT_HOT.key === key) return MT_HOT.map;
+  const map = new Map();
+  MT_WINS.forEach(K => {
+    const pool = pooledDays(K);
+    const an = use25() ? almanacAnalysis(pool, activeBooks().filter(b => b !== '25')) : almanacAnalysis(pool);
+    heatScore(pool, an).slice(0, 12).forEach(h => { const k = sortD(h.num); if(!map.has(k)) map.set(k, []); if(!map.get(k).includes(K)) map.get(k).push(K); });
+  });
+  MT_HOT = { key, map };
+  return map;
+}
 function mtLists(day){
   const lv = Object.keys(lastConvKeys||{}).map(Number).sort((a,b) => b-a);
   const { sum } = dsDateSum(day, dsWithYear()), root = dsUseRoot();
+  const hot = mtHotAll();
   return {
-    H: new Set((lastHeatNums||[]).map(sortD)),
+    H: new Set(hot.keys()), hotWins: hot,
     B: new Set(((lastConvKeys||{})[lv[0]]||[]).map(sortD)),
     /* every sum the date points at: the exact sum and the rest of its root group (today 5 -> 5, 14, 23) */
     S: new Set(Object.values(dsList(3, sum, true).byWays).flat()),
@@ -4214,7 +4232,7 @@ function renderMatches(){
       grp.map(([k, ts]) => {
         const c = came[k];
         return '<button type="button" class="mtpick'+(c ? ' came' : '')+'" onclick="openLookup(\''+k+'\')" title="'+ts.map(t => MT_NAMES[t]).join(' + ')+(c ? ' &middot; came in '+c.join(', ') : '')+'">'+
-          '<span class="mtn">'+k+'</span><span class="mttags">'+ts.map(t => '<i class="mt'+t+'">'+t+'</i>').join('')+'</span>'+
+          '<span class="mtn">'+k+'</span><span class="mttags">'+ts.map(t => '<i class="mt'+t+'"'+(t === 'H' ? ' title="Hottest with Look back '+L.hotWins.get(k).join(', ')+' days"' : '')+'>'+t+(t === 'H' ? '<small>'+L.hotWins.get(k).join('&middot;')+'d</small>' : '')+'</i>').join('')+'</span>'+
           '<span class="mtst">'+(c ? '&#10005; came '+c.slice(0,2).join(', ')+(c.length > 2 ? ' +'+(c.length-2) : '') : '&#10003; not yet')+'</span></button>';
       }).join('')+'</div>';
   });
@@ -4227,7 +4245,7 @@ function renderMatches(){
   h += '<div class="mtfoot"><span><i class="mtH">H</i> Hottest &nbsp;<i class="mtB">B</i> All 6 books agree &nbsp;<i class="mtS">S</i> Date sums &nbsp;<i class="mtM">M</i> Mirror ready &nbsp;<i class="mtF">F</i> Brings/Follows &nbsp;<i class="mtV">V</i> Vibrations</span>'+
     '<span>'+(days ? 'Your record, '+days+' day'+(days > 1 ? 's' : '')+': <b>'+hit+' of '+n+'</b> came &middot; chance '+exp.toFixed(1) : 'Your record starts with today&rsquo;s list.')+
     ' &middot; Tested Oct 30&ndash;Nov 2: 5 of 28 came, chance 7.7.</span></div>'+
-    '<div class="baseline">A number shows here when it is on <b>Hottest</b>, <b>Mirror ready</b> or <b>Vibrations</b> and at least one more list. Books counts only numbers <b>all six books</b> agree on. Date sums covers every sum the date points at: the exact sum and the rest of its root group. Brings/Follows counts its still-open numbers. Vibrations counts the day&rsquo;s three Daily Vibrations and the month&rsquo;s Favorite Doubles that haven&rsquo;t come yet. It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
+    '<div class="baseline">Hottest reads every Look back setting (1, 3, 5, 7 and 14 days); the small days on the H tag say which ones. A number shows here when it is on <b>Hottest</b>, <b>Mirror ready</b> or <b>Vibrations</b> and at least one more list. Books counts only numbers <b>all six books</b> agree on. Date sums covers every sum the date points at: the exact sum and the rest of its root group. Brings/Follows counts its still-open numbers. Vibrations counts the day&rsquo;s three Daily Vibrations and the month&rsquo;s Favorite Doubles that haven&rsquo;t come yet. It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
   out.innerHTML = h;
 }
 { const _r6 = render; render = function(){ const r = _r6.apply(this, arguments); try{ renderMatches(); }catch(e){ console.error(e); } return r; }; }
