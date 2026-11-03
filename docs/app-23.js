@@ -3856,6 +3856,7 @@ function stateYearHTML(S){
    watched to follow. Box or straight both count. Pairs marked both:true work either
    way (517 brings 519 and 519 brings 517). 180, 801 and 108 are the same box, so they
    share one row. More numbers will be added to BF_RULES as they come in. */
+let BF_OPEN = [];
 const BF_RULES = [
   { from:['813'], to:['8130'], who:'text', note:'Pick 4' },
   { from:['888','333','338','883'], to:['555','500','000','550'], who:'picture' },
@@ -3954,6 +3955,8 @@ function renderBringsFollows(){
     });
   });
   const live = [...liveBy.values()], came = [...cameBy.values()];
+  /* still-open Pick 3 follow numbers, boxed, for the Matches panel */
+  BF_OPEN = [...new Set(live.flatMap(x => x.r.to.filter(t => t.length === 3).map(sortD)))];
   live.sort((a,b) => b.f.h.t - a.f.h.t);
   came.sort((a,b) => b.f.hit.t - a.f.hit.t);
   const left = f => { const n = f.h.di + W - (D.dates.length - 1); return n <= 0 ? 'last day' : n + ' day' + (n>1?'s':'') + ' left'; };
@@ -4149,7 +4152,7 @@ try{ renderDateSum(); }catch(e){}
    what came. Tested Oct 30 - Nov 2 before it went in: no better than chance, but it cuts the
    play list to a handful a day. */
 const MT_KEY = 'matches_v1';
-const MT_NAMES = { H:'Hottest', B:'Books agree', S:'Date sum', M:'Mirror ready' };
+const MT_NAMES = { H:'Hottest', B:'All books agree', S:'Date sums', M:'Mirror ready', F:'Brings/Follows' };
 function mtStore(v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(MT_KEY)) || {}; localStorage.setItem(MT_KEY, JSON.stringify(v)); }catch(e){ return {}; } }
 function mtCame(day){
   const e = (DB.dayLog||[]).find(x => x.date === day), out = {};
@@ -4162,8 +4165,10 @@ function mtLists(day){
   return {
     H: new Set((lastHeatNums||[]).map(sortD)),
     B: new Set(((lastConvKeys||{})[lv[0]]||[]).map(sortD)),
-    S: new Set(Object.values(dsList(3, sum, root).byWays).flat()),
+    /* every sum the date points at: the exact sum and the rest of its root group (today 5 -> 5, 14, 23) */
+    S: new Set(Object.values(dsList(3, sum, true).byWays).flat()),
     M: new Set(MR_READY || []),
+    F: new Set((VIEW && VIEW.day) ? [] : (BF_OPEN || [])),
     sum, root, booksLv: lv[0] || 0
   };
 }
@@ -4172,7 +4177,7 @@ function renderMatches(){
   const day = (VIEW && VIEW.day) ? VIEW.day : todayISO();
   const L = mtLists(day);
   const seen = {};
-  ['H','B','S','M'].forEach(t => L[t].forEach(k => (seen[k] = seen[k] || []).push(t)));
+  ['H','B','S','M','F'].forEach(t => L[t].forEach(k => (seen[k] = seen[k] || []).push(t)));
   const picks = Object.entries(seen).filter(([k, ts]) => ts.length >= 2 && (ts.includes('H') || ts.includes('M')))
     .sort((a, b) => b[1].length - a[1].length || (b[1].includes('H') && b[1].includes('M')) - (a[1].includes('H') && a[1].includes('M')) || (a[0] < b[0] ? -1 : 1));
   const { came } = mtCame(day);
@@ -4184,11 +4189,12 @@ function renderMatches(){
     const st = mtStore();
     if(!mtCame(day).nDraw || !st[day]){ st[day] = picks.map(p => p[0]); mtStore(st); }
   }
-  let h = '<div class="mthead">For <b>'+lab(day)+'</b> &middot; date '+(L.root ? 'root' : 'sum')+' <b>'+(L.root ? dsRoot(L.sum) : L.sum)+'</b></div>';
+  const rs = [0,1,2,3,4].map(i => dsRoot(L.sum) + 9*i).filter(x => x > 0 && x <= 27);
+  let h = '<div class="mthead">For <b>'+lab(day)+'</b> &middot; date sums <b>'+rs.join(', ')+'</b> (root '+dsRoot(L.sum)+')</div>';
   if(!picks.length) h += '<div class="empty">Nothing lines up today &mdash; no Hottest or Mirror-ready number is on a second list.</div>';
-  else [4, 3, 2].forEach(n => {
+  else [5, 4, 3, 2].forEach(n => {
     const grp = picks.filter(p => p[1].length === n); if(!grp.length) return;
-    h += '<div class="sub-h">'+(n === 4 ? 'On all 4 lists' : 'On '+n+' lists')+'</div><div class="mtgrid">'+
+    h += '<div class="sub-h">'+(n === 5 ? 'On all 5 lists' : 'On '+n+' lists')+'</div><div class="mtgrid">'+
       grp.map(([k, ts]) => {
         const c = came[k];
         return '<button type="button" class="mtpick'+(c ? ' came' : '')+'" onclick="openLookup(\''+k+'\')" title="'+ts.map(t => MT_NAMES[t]).join(' + ')+(c ? ' &middot; came in '+c.join(', ') : '')+'">'+
@@ -4202,10 +4208,10 @@ function renderMatches(){
     const { came: cd, nDraw } = mtCame(d); if(!nDraw) return; days++;
     st[d].forEach(k => { n++; if(cd[k]) hit++; exp += 1 - Math.pow(1 - (PERM_COUNT[k]||0)/1000, nDraw); });
   });
-  h += '<div class="mtfoot"><span><i class="mtH">H</i> Hottest &nbsp;<i class="mtB">B</i> Books agree &nbsp;<i class="mtS">S</i> Date sum &nbsp;<i class="mtM">M</i> Mirror ready</span>'+
+  h += '<div class="mtfoot"><span><i class="mtH">H</i> Hottest &nbsp;<i class="mtB">B</i> All 6 books agree &nbsp;<i class="mtS">S</i> Date sums &nbsp;<i class="mtM">M</i> Mirror ready &nbsp;<i class="mtF">F</i> Brings/Follows</span>'+
     '<span>'+(days ? 'Your record, '+days+' day'+(days > 1 ? 's' : '')+': <b>'+hit+' of '+n+'</b> came &middot; chance '+exp.toFixed(1) : 'Your record starts with today&rsquo;s list.')+
     ' &middot; Tested Oct 30&ndash;Nov 2: 5 of 28 came, chance 7.7.</span></div>'+
-    '<div class="baseline">A number shows here when it is on <b>Hottest</b> or <b>Mirror ready</b> and at least one more list (the date list follows the Date Sum panel&rsquo;s settings). It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
+    '<div class="baseline">A number shows here when it is on <b>Hottest</b> or <b>Mirror ready</b> and at least one more list. Books counts only numbers <b>all six books</b> agree on. Date sums covers every sum the date points at: the exact sum and the rest of its root group. Brings/Follows counts its still-open numbers. It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
   out.innerHTML = h;
 }
 { const _r6 = render; render = function(){ const r = _r6.apply(this, arguments); try{ renderMatches(); }catch(e){ console.error(e); } return r; }; }
