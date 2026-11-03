@@ -72,6 +72,10 @@ GAMES = {
     'ma': ('ma', 'north', [('numbers-game-midday', 4, 'm'), ('numbers-game-evening', 4, 'e')]),
     'or': ('or', 'north', [('pick-4-1pm', 4, 'm'), ('pick-4-4pm', 4, 'm'), ('pick-4-7pm', 4, 'e'), ('pick-4-10pm', 4, 'e')]),
     'ri': ('ri', 'north', [('numbers-game-midday', 4, 'm'), ('numbers-game-evening', 4, 'e')]),
+    # canada: official sites. Ontario (OLG) and Atlantic (ALC) only serve results to their own pages,
+    # so they are not collected; paste them on the dashboard to add a day.
+    'wc': ('wc', 'canada', 'wclc'),
+    'qc': ('qc', 'canada', 'lotoquebec'),
     # caribbean: each draw lists 1st, 2nd and 3rd prize; only the 1st prize is kept
     'cr': ('vi', 'caribbean', [('pick-3-morning', 3, 'm'), ('pick-3-midday', 3, 'm'), ('pick-3-sunset', 3, 'e'), ('pick-3-evening', 3, 'e'),
                                ('pick-4-morning', 4, 'm'), ('pick-4-midday', 4, 'm'), ('pick-4-sunset', 4, 'e'), ('pick-4-evening', 4, 'e')]),
@@ -140,6 +144,50 @@ def read_dc():
     return per, bad
 
 
+def read_wclc():
+    """Western Canada Pick 3 / Pick 4 from wclc.com (one evening draw a day; the page also lists Pick 2)."""
+    h = fetch('https://www.wclc.com/winning-numbers/pick-3-extra.htm')
+    per, bad = {}, []
+    for block in re.split(r'<div class="pastWinNumGroup">', h)[1:]:
+        m = re.search(r'<h4>\s*\w+, (\w+ \d\d, \d{4})\s*</h4>', block)
+        if not m:
+            continue
+        d = datetime.datetime.strptime(m.group(1), '%B %d, %Y').date().isoformat()
+        for nums, game in re.findall(r'<ul class="pastWinNumbers">(.*?)<li class="pastWinNumLogoPICK(\d)SMALL"', block, re.S):
+            if game not in ('3', '4'):
+                continue
+            digits = re.findall(r'<li class="pastWinNumber">\s*(\d)\s*</li>', nums)
+            if len(digits) != int(game):
+                bad.append(f'{d} Pick {game}')
+                continue
+            per[(d, int(game))] = [(0, ''.join(digits), 'e')]
+    return per, bad
+
+
+def read_lotoquebec(days=6):
+    """Quebec Quotidienne 3 / 4 from loteries.lotoquebec.com, one page per date (one evening draw)."""
+    per, bad = {}, []
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-5))).date()
+    for i in range(days):
+        d = (today - datetime.timedelta(days=i)).isoformat()
+        h = fetch(f'https://loteries.lotoquebec.com/en/lotteries/la-quotidienne-resultats?date={d}')
+        shown = re.search(r'<div id="dateAffichee">(\d{4}-\d\d-\d\d)</div>', h)
+        if not shown or shown.group(1) != d:
+            continue                                   # no draw that day (or not posted yet)
+        for game in (3, 4):
+            m = re.search(r'<div class="lqZoneProduit principal \d+ q%d">.*?<span class="numeros">(.*?)</span>\s*</div>' % game, h, re.S)
+            digits = re.findall(r'<span class="num">(\d)</span>', m.group(1)) if m else []
+            if len(digits) != game:
+                bad.append(f'{d} Q{game}')
+                continue
+            per[(d, game)] = [(0, ''.join(digits), 'e')]
+        time.sleep(0.6)
+    return per, bad
+
+
+SPECIAL = {'dclottery': read_dc, 'wclc': read_wclc, 'lotoquebec': read_lotoquebec}
+
+
 def collect(only=None, pause=0.6):
     """{(date, group): {"p3": {code: [...]}, "s3": {...}, "p4": {...}, "s4": {...}}}"""
     found, problems = {}, []
@@ -147,13 +195,13 @@ def collect(only=None, pause=0.6):
         if only and code not in only:
             continue
         per = {}                                    # (date, digits) -> [(order, number, slot)]
-        if games == 'dclottery':
+        if isinstance(games, str):
             try:
-                per, bad = read_dc()
+                per, bad = SPECIAL[games]()
                 if bad:
-                    problems.append(f'dc: unreadable {bad}')
+                    problems.append(f'{code}: unreadable {bad}')
             except Exception as e:
-                problems.append(f'dc: {e}')
+                problems.append(f'{code}: {e}')
             games = []
         for order, (slug, digits, slot) in enumerate(games):
             try:

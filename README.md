@@ -15,5 +15,5 @@ python3 collector/collect.py --dry-run   # look only
 python3 collector/collect.py             # update docs/feed.json
 ```
 
-Not collected yet: Canada (Ontario, Quebec, Western Canada, Atlantic) and DC's 11:30 PM draw,
-which LotteryCorner doesn't carry. Those days keep whatever is already in the feed.
+Not collected: Ontario and Atlantic Canada, whose official sites only show results inside their own pages.
+Paste those on the dashboard to add a day. Western Canada, Quebec and DC come from their official sites.
