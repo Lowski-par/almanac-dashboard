@@ -3220,7 +3220,7 @@ function renderFeed(){
   txt.innerHTML = '<b>Automatic results on</b> &middot; through '+md(F.through)+' &middot; '+F.states+' states'+
     ' &middot; checked '+(F.at ? F.at.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '—')+
     (bits.length ? ' &middot; this sync: '+bits.join(', ') : ' &middot; nothing new')+
-    ' &middot; <span title="Ontario, Quebec and Western Canada Pick 3 and Pick 4, plus Atlantic Lotto 4, arrive each morning">Canada: automatic</span>'+
+    ' &middot; <span title="Ontario, Quebec, Western Canada and Atlantic results are not collected by the standalone updater yet; paste them to add a day">Canada: paste only</span>'+
     ' &middot; <span title="Caribbean Lottery Pick 3 and Pick 4: Morning, Midday, Sunset and Evening">Caribbean: automatic</span>';
   const C = r.conflicts || [];
   cf.innerHTML = C.length
