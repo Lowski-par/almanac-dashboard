@@ -3234,11 +3234,19 @@ function renderFeed(){
    link: the published file feed.json (no sign-in needed, rewritten by each
    scheduled refresh) and, for a signed-in viewer, the artifact's database.
    Both carry the same docs; the database copy wins when both have a day. */
+/* Copies of this page published elsewhere (the team links on claude.ai) read the
+   live file from GitHub Pages first, then fall back to their own copy. */
+const FEED_LIVE = 'https://lowski-par.github.io/almanac-dashboard/feed.json';
 async function loadFeedFile(){
-  const r = await fetch('feed.json?t=' + Date.now(), { cache:'no-store' });
-  if(!r.ok) throw new Error('feed.json ' + r.status);
-  const j = await r.json();
-  return Array.isArray(j) ? j : (j.docs || []);
+  for(const u of [FEED_LIVE, 'feed.json']){
+    try{
+      const r = await fetch(u + '?t=' + Date.now(), { cache:'no-store' });
+      if(!r.ok) continue;
+      const j = await r.json();
+      return Array.isArray(j) ? j : (j.docs || []);
+    }catch(e){}
+  }
+  throw new Error('feed.json unreachable');
 }
 async function syncFeed(manual){
   const btn = document.getElementById('feedSync'); if(btn) btn.disabled = true;

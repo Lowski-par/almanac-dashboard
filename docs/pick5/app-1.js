@@ -109,10 +109,13 @@ async function loadAll(){
 }
 async function loadFeed(){
   FEED_STATE.file = null;
-  try{
-    const r = await fetch('feed.json?t='+Date.now(), {cache:'no-store'});
-    if(r.ok){ const j = await r.json(); (j.docs||[]).forEach(addFeedDoc); FEED_STATE.file = true; FEED_STATE.updatedAt = j.updatedAt || null; }
-  }catch(e){}
+  // the live file on GitHub Pages first (so the claude.ai copy stays current), then this copy's own
+  for(const u of ['https://lowski-par.github.io/almanac-dashboard/pick5/feed.json', 'feed.json']){
+    try{
+      const r = await fetch(u+'?t='+Date.now(), {cache:'no-store'});
+      if(r.ok){ const j = await r.json(); (j.docs||[]).forEach(addFeedDoc); FEED_STATE.file = true; FEED_STATE.updatedAt = j.updatedAt || null; break; }
+    }catch(e){}
+  }
   try{
     if(window.claude && window.claude.use){
       const db = await window.claude.use('db');
