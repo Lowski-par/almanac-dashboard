@@ -26,17 +26,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Collect the latest draws
+      - name: Collect Pick 3 and Pick 4 (Almanac Convergence)
+        continue-on-error: true
         run: python3 collector/collect.py
+
+      - name: Collect Pick 5 (Pick 5 Endeavor)
+        continue-on-error: true
+        run: python3 collector/collect_pick5.py
 
       - name: Save the new results
         run: |
-          if git diff --quiet docs/feed.json; then
+          if git diff --quiet docs/feed.json docs/pick5/feed.json; then
             echo "No new draws."
             exit 0
           fi
           git config user.name "results-bot"
           git config user.email "results-bot@users.noreply.github.com"
-          git add docs/feed.json
+          git add docs/feed.json docs/pick5/feed.json
           git commit -m "Results update $(date -u +%Y-%m-%dT%H:%MZ)"
           git push

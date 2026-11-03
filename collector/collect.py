@@ -123,11 +123,11 @@ def read_game(lc, slug, digits, caribbean):
 DC_TIMES = {'1:50pm': (0, 'm'), '7:50pm': (1, 'e'), '11:30pm': (2, 'e')}
 
 
-def read_dc():
-    """DC-3 and DC-4 from dclottery.com, which lists the 1:50pm, 7:50pm and 11:30pm draws."""
+def read_dc(games=(3, 4)):
+    """DC-3, DC-4 (and DC-5) from dclottery.com, which lists the 1:50pm, 7:50pm and 11:30pm draws."""
     h = fetch('https://dclottery.com/winning-numbers')
     per, bad = {}, []
-    for digits in (3, 4):
+    for digits in games:
         m = re.search(r'<div class="game dc-%d[ "].*?(?=<div class="game |\Z)' % digits, h, re.S)
         if not m:
             bad.append(f'DC-{digits} section not found')

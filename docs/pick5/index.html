@@ -1,0 +1,318 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pick 5 Endeavor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: mission-control board. A launch header, then a stack of collapsible panels; numbers always in mono. */
+:root{
+  --bg:#F3F4F8; --panel:#FFFFFF; --ink:#141A2E; --ink-2:#3B4360; --muted:#6B7290; --line:#DCDFEA;
+  --accent:#E8590C; --accent-ink:#FFFFFF; --accent-soft:#FDE8DC;
+  --navy:#1B2550; --navy-ink:#F3F4F8;
+  --good:#1E7A47; --good-soft:#DDF2E5; --bad:#B42318; --bad-soft:#FBE3E0; --warn:#9A6700; --warn-soft:#FFF2CC;
+  --display:"Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1124; --panel:#151A33; --ink:#E9ECF7; --ink-2:#C2C8E0; --muted:#8E95B5; --line:#2A3152;
+  --accent:#FF7A33; --accent-ink:#1A0D05; --accent-soft:#3A2214;
+  --navy:#1F2A5C; --navy-ink:#E9ECF7;
+  --good:#5CCB8A; --good-soft:#163525; --bad:#FF8A7A; --bad-soft:#3A1A17; --warn:#F2C14E; --warn-soft:#3A3014;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0D1124; --panel:#151A33; --ink:#E9ECF7; --ink-2:#C2C8E0; --muted:#8E95B5; --line:#2A3152;
+  --accent:#FF7A33; --accent-ink:#1A0D05; --accent-soft:#3A2214;
+  --navy:#1F2A5C; --navy-ink:#E9ECF7;
+  --good:#5CCB8A; --good-soft:#163525; --bad:#FF8A7A; --bad-soft:#3A1A17; --warn:#F2C14E; --warn-soft:#3A3014;
+  color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:var(--ink)}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.launch{background:var(--navy);color:var(--navy-ink);margin-bottom:18px}
+.launch-in{max-width:1080px;margin:0 auto;padding:18px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center}
+.launch h1{font-size:clamp(30px,5vw,46px);letter-spacing:.02em;line-height:1}
+.launch h1 b{color:var(--accent)}
+.launch p{margin:8px 0 0;max-width:62ch;color:var(--navy-ink);opacity:.85;font-size:14px}
+.launch img{width:220px;max-width:100%;border-radius:10px;display:block}
+@media (max-width:640px){.launch-in{grid-template-columns:1fr}.launch img{width:100%;max-width:360px}}
+
+.statusbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:0 0 16px;font-size:13px;color:var(--ink-2)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+.dot.ok{background:var(--good)} .dot.warn{background:var(--warn)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 12px;font-size:13px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.ctl{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 12px;font-size:13px;color:var(--ink-2)}
+.ctl label{display:flex;gap:6px;align-items:center}
+.ctl select,.ctl input{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:5px 8px;font-size:14px}
+.ctl label{min-width:0;max-width:100%}
+.ctl select{max-width:100%;min-width:0}
+.ctl input.big{font-family:var(--mono);font-size:18px;width:120px;letter-spacing:.12em}
+
+/* panels */
+details.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
+details.panel>summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary h2{font-size:19px;letter-spacing:.03em;text-transform:uppercase}
+details.panel>summary .sub{font-size:13px;color:var(--muted)}
+details.panel>summary::before{content:"▸";color:var(--accent);font-size:14px;transition:transform .15s}
+details.panel[open]>summary::before{transform:rotate(90deg)}
+.pbody{padding:0 16px 16px;min-width:0}
+.note{font-size:12.5px;color:var(--muted);max-width:75ch;margin-top:10px}
+.sub-h{font-family:var(--display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:14px 0 6px}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+
+/* tables */
+.tw{overflow-x:auto;min-width:0}
+table.t{border-collapse:collapse;width:100%;font-size:14px}
+table.t th{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:left;padding:7px 8px;border-bottom:2px solid var(--line);white-space:nowrap}
+table.t td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:16px;letter-spacing:.08em;white-space:nowrap}
+table.t tr.grp td{background:var(--bg);font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+table.t tr.top td{background:var(--accent-soft)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:1px 5px;border-radius:4px;background:var(--bg);color:var(--muted);margin-left:6px;letter-spacing:0;vertical-align:middle}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;gap:6px;align-items:baseline;border:1px solid var(--line);border-radius:7px;padding:3px 8px;background:var(--panel);font-family:var(--mono);font-size:14px;letter-spacing:.06em;cursor:pointer}
+.chip small{font-family:var(--body);letter-spacing:0;font-size:11px;color:var(--muted)}
+.chip.open{border-color:var(--good);background:var(--good-soft)}
+.chip.came{border-color:var(--bad);background:var(--bad-soft);text-decoration:line-through;text-decoration-color:var(--bad)}
+.chip.hot{border-color:var(--accent);background:var(--accent-soft)}
+.mk{font-family:var(--body);font-size:12px;font-weight:700}
+.mk.ok{color:var(--good)} .mk.x{color:var(--bad)}
+
+/* endeavor cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.card h3{font-size:14px;letter-spacing:.04em;display:flex;justify-content:space-between;gap:8px}
+.card .from{font-size:12px;color:var(--muted);margin:2px 0 8px}
+.card .from b{font-family:var(--mono);color:var(--ink);letter-spacing:.08em}
+
+/* banner */
+.play{background:var(--navy);color:var(--navy-ink);border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.play b{font-family:var(--mono);font-size:22px;letter-spacing:.12em;color:var(--accent)}
+.play small{display:block;opacity:.85;font-size:12.5px;margin-top:3px}
+
+/* score tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:8px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-family:var(--mono);font-size:24px;font-variant-numeric:tabular-nums}
+
+/* pairs grid */
+.pgrid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:3px;max-width:560px}
+.pc{border-radius:5px;padding:4px 0 3px;text-align:center;font-family:var(--mono);font-size:13px;background:var(--bg);color:var(--ink-2);line-height:1.1;cursor:default}
+.pc small{display:block;font-size:10px;color:var(--muted)}
+.pc.l1{background:var(--warn-soft);color:var(--ink)}
+.pc.l2{background:var(--accent-soft);color:var(--ink)}
+.pc.l3{background:var(--accent);color:var(--accent-ink)} .pc.l3 small{color:var(--accent-ink)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+/* triple watch grid */
+table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
+.twc{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px;min-width:44px;border:1px solid transparent;border-radius:6px;padding:4px 4px;background:var(--bg);color:var(--ink-2)}
+.twc.l1{background:var(--warn-soft);color:var(--ink)}
+.twc.l2{background:var(--accent-soft);color:var(--ink)}
+.twc.l3{background:var(--accent);color:var(--accent-ink)}
+.twc.sel{border-color:var(--ink);font-weight:600}
+.twc:hover{border-color:var(--accent)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<header class="launch"><div class="launch-in">
+  <div>
+    <h1>Pick 5 <b>Endeavor</b></h1>
+    <p>Every state's Pick 5 draws, the Endeavor rundowns worked automatically from each new draw, a Pick 5 straight finder, pairs out and a number lookup. Results fill in on their own through the day.</p>
+  </div>
+  <img src="rocket.webp" alt="Pick 5 Endeavor rocket" width="547" height="296">
+</div></header>
+
+<div class="wrap">
+
+<div class="statusbar">
+  <span><span class="dot" id="feedDot"></span><span id="feedText">Loading results…</span></span>
+  <button class="btn" id="syncBtn" type="button">Sync now</button>
+  <label class="ctl" style="margin:0">Draws for
+    <select id="daySel"></select>
+  </label>
+  <button class="btn" id="dayPrev" type="button" aria-label="Earlier day">← Earlier</button>
+  <button class="btn" id="dayNext" type="button" aria-label="Later day">Later →</button>
+</div>
+
+<details class="panel" open id="pDraws"><summary><h2>What every state drew</h2><span class="sub" id="drawsSub"></span></summary>
+  <div class="pbody">
+  <div class="ctl"><label>States <select id="drawsOnly"><option value="">every state with Pick 4 or Pick 5</option><option value="p5">only the 10 Pick 5 states</option></select></label></div>
+  <div class="tw" id="drawsOut"></div>
+  <div class="note">Pick 4 covers every state, DC, Puerto Rico and Canada. States with more than two Pick 4 draws a day (like Texas, Tennessee, DC and Oregon) list each one in time order under its column. Pick 4 triples are highlighted. For Pick 5, box type shows how many ways the number can be arranged (120-way = all different digits; 60-way = one pair; 5-way = four of a kind). Georgia FIVE has no box bet. Pick 4 history starts June 1, 2026. Tap any number to look it up.</div></div>
+</details>
+
+<details class="panel" open id="pEnd"><summary><h2>Endeavor rundowns</h2><span class="sub">your workbook, run on every state's last draw</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Work a number yourself <input class="big" id="endBox" maxlength="5" inputmode="numeric" placeholder="03888"></label>
+      <label>Rundowns <select id="endSet">
+        <option value="end">Endeavor +0 1 1 2 3 (the workbook's 8)</option>
+        <option value="all">All five rundowns in the workbook</option>
+      </select></label>
+    </div>
+    <div id="endMine"></div>
+    <div class="sub-h">Every state, from its last draw <span id="endAsOf" style="text-transform:none;letter-spacing:0;font-family:var(--body);color:var(--muted)"></span></div>
+    <div class="grid" id="endOut"></div>
+    <div class="note"><span class="mk ok">✓</span> green = not come yet in that state since it was worked. <span class="mk x">✕</span> red = already came there. "Came in other states" lists every later draw in any other state that matched one of the boxes, in any order. Pick an earlier day under "Draws for" to see how that day's boxes traveled since. Tap any number to look it up.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pScore"><summary><h2>Endeavor scoreboard</h2><span class="sub">how the workbook has done on real draws</span></summary>
+  <div class="pbody"><div id="scoreOut"></div></div>
+</details>
+
+<details class="panel" open id="pLog"><summary><h2>My play log</h2><span class="sub">what you spend, what you win, and where you stand</span></summary>
+  <div class="pbody">
+    <div id="logTiles"></div>
+    <form id="logForm" class="ctl" autocomplete="off">
+      <label>Date <input type="date" id="lgDate" required></label>
+      <label>State <select id="lgState"><option value="">Any</option></select></label>
+      <label>Played <input id="lgNote" maxlength="80" placeholder="e.g. Endeavor boxes, 8 × $1" style="width:210px"></label>
+      <label>Spent $ <input id="lgSpent" inputmode="decimal" placeholder="0" style="width:80px"></label>
+      <label>Won $ <input id="lgWon" inputmode="decimal" placeholder="0" style="width:80px"></label>
+      <button class="btn primary" type="submit">Add</button>
+      <span id="lgMsg" style="font-size:13px" aria-live="polite"></span>
+    </form>
+    <div class="ctl" id="lgBudgetRow">
+      <label>Monthly budget $ <input id="lgBudget" inputmode="decimal" placeholder="none" style="width:90px"></label>
+      <button class="btn" type="button" id="lgBudgetSave">Save budget</button>
+    </div>
+    <div id="logOut"></div>
+    <div class="note">Your log is saved in this browser only, so nobody else sees it. Each device keeps its own: use Copy log here and Paste log on your other device to move it. "Expected back" uses the average payback of about 50¢ per $1 played.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pLP"><summary><h2>Lottery Post methods</h2><span class="sub">three Pick 5 methods from the forums, worked from every state's last draw</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Method <select id="lpSet">
+        <option value="rund">814-style rundown (lakerben)</option>
+        <option value="proj">Digit string projection R2–R8 (adobea78)</option>
+        <option value="wheel">String covering wheel (tokecap)</option>
+      </select></label>
+      <label id="lpIncWrap">Add across <input class="big" id="lpInc" maxlength="5" inputmode="numeric" value="81481" style="width:100px"></label>
+      <button class="btn" type="button" id="lpCopyAll">Copy all states' numbers</button>
+      <span id="lpCopied" style="color:var(--good);font-size:13px" aria-live="polite"></span>
+    </div>
+    <div id="lpHow" class="note" style="margin:0 0 10px"></div>
+    <div id="lpTop"></div>
+    <div class="grid" id="lpOut"></div>
+    <div class="note">Copied lists are plain five-digit numbers separated by spaces, ready to paste into Deflate 5 or Inspector 5 on Lottery Post. <span class="mk ok">✓</span> green = not come yet in that state since it was worked. <span class="mk x">✕</span> red = already came there.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pConv"><summary><h2>Method convergence</h2><span class="sub">boxes that several rundowns point at today</span></summary>
+  <div class="pbody"><div id="convOut"></div></div>
+</details>
+
+<details class="panel" open id="pTrig"><summary><h2>Pick 4 → Pick 5 triggers</h2><span class="sub">every Pick 4 triple in any state, and whether that triple showed up in a Pick 5 within 7 days</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Show <select id="trWin"><option value="14">last 14 days</option><option value="30">last 30 days</option><option value="60">last 60 days</option><option value="140">since June 1</option></select></label>
+      <label>Pick 4 states <select id="trOnly"><option value="">all states</option><option value="p5">only the 10 Pick 5 states</option></select></label>
+      <span id="trCopied" style="color:var(--good);font-size:13px" aria-live="polite"></span>
+    </div>
+    <div id="trTiles"></div>
+    <div class="tw" id="trOut"></div>
+    <div class="sub-h">What 2+ years of draws say</div>
+    <div class="tw" id="trBack"></div>
+    <div class="note">A trigger is any Pick 4 draw with three or four of the same digit (like 7774). It "came" if a Pick 5 draw in any of the 10 Pick 5 states had three or more of that digit, in any order, in the 7 days after. "Random" is how often three of a given digit show up anyway: about 1 Pick 5 draw in 117. "Copy 55" copies the full box cover for that digit (like 77700 through 77799), ready to paste into Deflate 5. The live count starts Oct 14, 2026, so it tracks new triples going forward.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pTW"><summary><h2>Triple watch</h2><span class="sub">how long each state has gone without three of each digit, and two live tests of "due" and "travel"</span></summary>
+  <div class="pbody">
+    <div id="twTiles"></div>
+    <div class="sub-h">Draws since each state last had three of a digit</div>
+    <div class="tw" id="twGrid"></div>
+    <div class="legend"><span><i style="background:var(--bg);border:1px solid var(--line)"></i>under 117 (the average wait)</span><span><i style="background:var(--warn-soft)"></i>117+</span><span><i style="background:var(--accent-soft)"></i>234+ (twice the average)</span><span><i style="background:var(--accent)"></i>351+</span><span>"+" = none since that state's history starts</span></div>
+    <div style="margin-top:12px" id="twSelOut"></div>
+    <div class="sub-h">Long-out test: pairs that reached 234 draws, and their next 14 draws</div>
+    <div class="tw" id="twLong"></div>
+    <div class="sub-h">Travel test: Pick 5 triples in the last 30 days, and the same triple in another state</div>
+    <div class="tw" id="twTravel"></div>
+    <div class="sub-h">What the draws since Jan 2024 say</div>
+    <div class="tw"><table class="t"><thead><tr><th>Check (Jan 2024 – Oct 13, 2026, 10 states)</th><th>Came</th><th>Random</th><th>Ratio</th></tr></thead><tbody>
+      <tr><td>Next draw, after 0–49 draws out</td><td class="num">474</td><td class="num">508.5</td><td class="num">0.93</td></tr>
+      <tr><td>Next draw, after 50–116 draws out</td><td class="num">409</td><td class="num">401.8</td><td class="num">1.02</td></tr>
+      <tr><td>Next draw, after 117–233 draws out</td><td class="num">328</td><td class="num">301.0</td><td class="num">1.09</td></tr>
+      <tr><td>Next draw, after 234+ draws out</td><td class="num">147</td><td class="num">135.5</td><td class="num">1.09</td></tr>
+      <tr><td>Just reached 234 out → next 14 draws, same state (156 times)</td><td class="num">26</td><td class="num">18.7</td><td class="num">1.39</td></tr>
+      <tr><td>Pick 5 triple → same triple in another Pick 5 state, 7 days (1,444 triples)</td><td class="num">1,233</td><td class="num">1,273.3</td><td class="num">0.97</td></tr>
+    </tbody></table></div>
+    <div class="note">A Pick 5 draw has three or more of a given digit (like 88800 through 88899) about 1 time in 117, or 0.86%. Long waits came slightly more often than chance, but shuffling each state's draws into random order matched or beat 1.09 about 1 time in 15, and 1.39 about 1 time in 18, so neither is proven. Triples did not travel to other states more than chance; a triple shows up somewhere in the 10 states in about 6 of every 10 weeks anyway. The two live tests count only from Oct 14, 2026 forward. Tap any cell to see that state and digit and copy its 55 boxes.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pSeq"><summary><h2>10-way sequence watch</h2><span class="sub">every 10-way hit, and its associated boxes a week before and a week after, all states</span></summary>
+  <div class="pbody">
+    <div class="ctl"><label>Hits since <select id="seqSince"><option value="2026-01-01">Jan 1, 2026</option><option value="2025-01-01">Jan 1, 2025</option><option value="2024-01-01">Jan 1, 2024</option></select></label></div>
+    <div id="seqTiles"></div>
+    <div class="tw" id="seqOut"></div>
+    <div class="note">For each 10-way number (three of one digit and two of another, like 80808), its associated boxes are every box your methods make from it: Endeavor, the four other workbook rundowns, the mirror, the 814 rundown and the string projection (about 55–60 boxes). "Before" counts how many of those came in any state in the 7 days before the hit; "After" counts the 7 days after. "Random" is how many random boxes of the same types would come in the same number of draws. Weeks still in progress show as partial and are left out of the totals until they finish. Tap a row to see which boxes came.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pSF"><summary><h2>Straight Finder</h2><span class="sub">which way of a Pick 5 is longest out</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Number <input class="big" id="sfBox" maxlength="5" inputmode="numeric" placeholder="12345"></label>
+      <label>Draw <select id="sfSlot"><option value="b">Both</option><option value="m">Midday / Day</option><option value="e">Evening / Night</option></select></label>
+      <label>State <select id="sfState"><option value="">All states</option></select></label>
+    </div>
+    <div id="sfOut"><div class="empty">Type a five-digit number.</div></div>
+  </div>
+</details>
+
+<details class="panel" id="pPairs"><summary><h2>Pairs out</h2><span class="sub">front and back pairs, draws since each last came</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>State <select id="prState"></select></label>
+      <label>Pair <select id="prMode"><option value="f">Front pair (1st–2nd digit)</option><option value="b">Back pair (4th–5th digit)</option><option value="a">Any two digits (any order)</option></select></label>
+    </div>
+    <div id="prOut"></div>
+  </div>
+</details>
+
+<details class="panel" id="pLook"><summary><h2>Look up a number</h2><span class="sub">every time it came, any state</span></summary>
+  <div class="pbody">
+    <div class="ctl"><label>Pick 5, or a front/back 3 or 4 <input class="big" id="lkBox" maxlength="5" inputmode="numeric" placeholder="03888"></label></div>
+    <div id="lkOut"><div class="empty">Type 3, 4 or 5 digits.</div></div>
+  </div>
+</details>
+
+<details class="panel" id="pState"><summary><h2>State view</h2><span class="sub">one state up close</span></summary>
+  <div class="pbody">
+    <div class="ctl"><label>State <select id="stState"></select></label></div>
+    <div id="stOut"></div>
+  </div>
+</details>
+
+<details class="panel" id="pTest"><summary><h2>Methods tested</h2><span class="sub">every Pick 5 method we could code, on 17,647 real draws</span></summary>
+  <div class="pbody"><div class="tw" id="testOut"></div>
+  <div class="note">Each method was fed a state's last draw and graded on that state's next draw in the same slot, Jan 2024 – Oct 12, 2026 (Louisiana from 2021). "Chance" is how many hits picking that many numbers at random would get. A ratio near 1.00 means the method did what random picks do. Every bet returns about 50¢ per $1 on average whichever numbers are played.</div></div>
+</details>
+
+<details class="panel" id="pPay"><summary><h2>Payouts &amp; odds</h2><span class="sub">per $1 bet</span></summary>
+  <div class="pbody"><div class="tw" id="payOut"></div></div>
+</details>
+
+</div>
+<script src="app-1.js"></script>
+<script src="triple-1.js"></script>
+
+</body></html>
