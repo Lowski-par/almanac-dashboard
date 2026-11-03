@@ -3396,7 +3396,10 @@ function renderView(){
 }
 { const _render = render; render = function(){
     let full = null;
-    if(VIEW && VIEW.day){
+    /* a render that starts while a past day is already being drawn just draws into that
+       same cut-down copy: re-cutting here and switching VIEW_ACTIVE off in its finally let
+       the rest of the outer render save the cut-down copy over the real history */
+    if(VIEW && VIEW.day && !VIEW_ACTIVE){
       full = DB;
       const asOf = isoAdd(VIEW.day, -1);
       let cut = full.dayLog.findIndex(e => e.date && e.date > asOf); if(cut < 0) cut = full.dayLog.length;
@@ -3678,7 +3681,8 @@ function renderMirror(){
   const out = document.getElementById('mrOut'); if(!out) return;
   const M = mrData(), all = M.all, dates = M.dates;
   if(!all.length){ out.innerHTML = '<div class="empty">Add a day to begin.</div>'; return; }
-  const asOf = (VIEW && VIEW.day) ? VIEW.day : dates[dates.length-1];
+  /* viewing a past day shows the rundown as it stood that morning: only draws through the day before */
+  const asOf = (VIEW && VIEW.day) ? isoAdd(VIEW.day, -1) : dates[dates.length-1];
   const pool = dates.filter(d => d <= asOf);
   if(!pool.length){ out.innerHTML = '<div class="empty">No days on or before '+asOf+'.</div>'; return; }
   const lastDi = M.dateIdx.get(pool[pool.length-1]);
