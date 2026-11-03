@@ -1,5 +1,12 @@
 # Almanac Convergence dashboard
 
+## Open the dashboards
+
+- **Almanac Convergence (Pick 3 / Pick 4):** https://lowski-par.github.io/almanac-dashboard/
+- **Pick 5 Endeavor:** https://lowski-par.github.io/almanac-dashboard/pick5/
+
+Bookmark those two links. Everything below is only about how the pages update.
+
 Marcus's Pick 3 / Pick 4 tracker, running on its own: no Claude and no paid services.
 
 - `docs/` is Almanac Convergence (Pick 3/4) and `docs/pick5/` is Pick 5 Endeavor, both served by GitHub Pages.
