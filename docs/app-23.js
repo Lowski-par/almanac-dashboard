@@ -4152,7 +4152,14 @@ try{ renderDateSum(); }catch(e){}
    what came. Tested Oct 30 - Nov 2 before it went in: no better than chance, but it cuts the
    play list to a handful a day. */
 const MT_KEY = 'matches_v1';
-const MT_NAMES = { H:'Hottest', B:'All books agree', S:'Date sums', M:'Mirror ready', F:'Brings/Follows' };
+const MT_NAMES = { H:'Hottest', B:'All books agree', S:'Date sums', M:'Mirror ready', F:'Brings/Follows', V:'Vibrations' };
+/* the day's three Daily Vibrations plus the month's Favorite Doubles that haven't come yet before that day */
+function mtVibes(day){
+  const m = +day.slice(5,7), d = +day.slice(8,10), B = VIB[m]; if(!B) return [];
+  const ym = day.slice(0,7), came = new Set();
+  (DB.dayLog||[]).forEach(e => { if(e.date && e.date.slice(0,7) === ym && e.date < day) Object.values(e.dayStates||{}).forEach(ns => ns.forEach(n => came.add(sortD(n)))); });
+  return [...(B.days[d] || []).map(sortD), ...B.doubles.map(sortD).filter(k => !came.has(k))];
+}
 function mtStore(v){ try{ if(v === undefined) return JSON.parse(localStorage.getItem(MT_KEY)) || {}; localStorage.setItem(MT_KEY, JSON.stringify(v)); }catch(e){ return {}; } }
 function mtCame(day){
   const e = (DB.dayLog||[]).find(x => x.date === day), out = {};
@@ -4169,6 +4176,7 @@ function mtLists(day){
     S: new Set(Object.values(dsList(3, sum, true).byWays).flat()),
     M: new Set(MR_READY || []),
     F: new Set((VIEW && VIEW.day) ? [] : (BF_OPEN || [])),
+    V: new Set(mtVibes(day)),
     sum, root, booksLv: lv[0] || 0
   };
 }
@@ -4177,8 +4185,8 @@ function renderMatches(){
   const day = (VIEW && VIEW.day) ? VIEW.day : todayISO();
   const L = mtLists(day);
   const seen = {};
-  ['H','B','S','M','F'].forEach(t => L[t].forEach(k => (seen[k] = seen[k] || []).push(t)));
-  const picks = Object.entries(seen).filter(([k, ts]) => ts.length >= 2 && (ts.includes('H') || ts.includes('M')))
+  ['H','B','S','M','F','V'].forEach(t => L[t].forEach(k => (seen[k] = seen[k] || []).push(t)));
+  const picks = Object.entries(seen).filter(([k, ts]) => ts.length >= 2 && (ts.includes('H') || ts.includes('M') || ts.includes('V')))
     .sort((a, b) => b[1].length - a[1].length || (b[1].includes('H') && b[1].includes('M')) - (a[1].includes('H') && a[1].includes('M')) || (a[0] < b[0] ? -1 : 1));
   const { came } = mtCame(day);
   const lab = iso => new Date(iso+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
@@ -4191,10 +4199,10 @@ function renderMatches(){
   }
   const rs = [0,1,2,3,4].map(i => dsRoot(L.sum) + 9*i).filter(x => x > 0 && x <= 27);
   let h = '<div class="mthead">For <b>'+lab(day)+'</b> &middot; date sums <b>'+rs.join(', ')+'</b> (root '+dsRoot(L.sum)+')</div>';
-  if(!picks.length) h += '<div class="empty">Nothing lines up today &mdash; no Hottest or Mirror-ready number is on a second list.</div>';
-  else [5, 4, 3, 2].forEach(n => {
+  if(!picks.length) h += '<div class="empty">Nothing lines up today &mdash; no Hottest, Mirror-ready or Vibration number is on a second list.</div>';
+  else [6, 5, 4, 3, 2].forEach(n => {
     const grp = picks.filter(p => p[1].length === n); if(!grp.length) return;
-    h += '<div class="sub-h">'+(n === 5 ? 'On all 5 lists' : 'On '+n+' lists')+'</div><div class="mtgrid">'+
+    h += '<div class="sub-h">'+(n === 6 ? 'On all 6 lists' : 'On '+n+' lists')+'</div><div class="mtgrid">'+
       grp.map(([k, ts]) => {
         const c = came[k];
         return '<button type="button" class="mtpick'+(c ? ' came' : '')+'" onclick="openLookup(\''+k+'\')" title="'+ts.map(t => MT_NAMES[t]).join(' + ')+(c ? ' &middot; came in '+c.join(', ') : '')+'">'+
@@ -4208,10 +4216,10 @@ function renderMatches(){
     const { came: cd, nDraw } = mtCame(d); if(!nDraw) return; days++;
     st[d].forEach(k => { n++; if(cd[k]) hit++; exp += 1 - Math.pow(1 - (PERM_COUNT[k]||0)/1000, nDraw); });
   });
-  h += '<div class="mtfoot"><span><i class="mtH">H</i> Hottest &nbsp;<i class="mtB">B</i> All 6 books agree &nbsp;<i class="mtS">S</i> Date sums &nbsp;<i class="mtM">M</i> Mirror ready &nbsp;<i class="mtF">F</i> Brings/Follows</span>'+
+  h += '<div class="mtfoot"><span><i class="mtH">H</i> Hottest &nbsp;<i class="mtB">B</i> All 6 books agree &nbsp;<i class="mtS">S</i> Date sums &nbsp;<i class="mtM">M</i> Mirror ready &nbsp;<i class="mtF">F</i> Brings/Follows &nbsp;<i class="mtV">V</i> Vibrations</span>'+
     '<span>'+(days ? 'Your record, '+days+' day'+(days > 1 ? 's' : '')+': <b>'+hit+' of '+n+'</b> came &middot; chance '+exp.toFixed(1) : 'Your record starts with today&rsquo;s list.')+
     ' &middot; Tested Oct 30&ndash;Nov 2: 5 of 28 came, chance 7.7.</span></div>'+
-    '<div class="baseline">A number shows here when it is on <b>Hottest</b> or <b>Mirror ready</b> and at least one more list. Books counts only numbers <b>all six books</b> agree on. Date sums covers every sum the date points at: the exact sum and the rest of its root group. Brings/Follows counts its still-open numbers. It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
+    '<div class="baseline">A number shows here when it is on <b>Hottest</b>, <b>Mirror ready</b> or <b>Vibrations</b> and at least one more list. Books counts only numbers <b>all six books</b> agree on. Date sums covers every sum the date points at: the exact sum and the rest of its root group. Brings/Follows counts its still-open numbers. Vibrations counts the day&rsquo;s three Daily Vibrations and the month&rsquo;s Favorite Doubles that haven&rsquo;t come yet. It keeps the play list short; each number still has its usual odds. Tap a number to look it up.</div>';
   out.innerHTML = h;
 }
 { const _r6 = render; render = function(){ const r = _r6.apply(this, arguments); try{ renderMatches(); }catch(e){ console.error(e); } return r; }; }
