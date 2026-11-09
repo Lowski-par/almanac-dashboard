@@ -193,6 +193,7 @@ MONTHS = {m: i for i, m in enumerate(['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
 D_NAMED = re.compile(r'([A-Za-z]{3,9})\.? (\d{1,2}),? (\d{4})')
 D_ISO = re.compile(r'(\d{4})-(\d\d)-(\d\d)')
 D_US = re.compile(r'(\d{1,2})/(\d{1,2})/(\d{4})')
+D_DMY = re.compile(r'(\d{1,2}) ([A-Za-z]{3,9})\.? (\d{4})')               # "08 Nov 2026" (lotteryguru)
 
 
 def page_tokens(h):
@@ -208,6 +209,8 @@ def find_date(t):
         y, mo, d = map(int, m.groups())
     elif D_US.search(t):
         mo, d, y = map(int, D_US.search(t).groups())
+    elif D_DMY.search(t) and D_DMY.search(t).group(2)[:3].lower() in MONTHS:
+        d, mo, y = int(D_DMY.search(t).group(1)), MONTHS[D_DMY.search(t).group(2)[:3].lower()], int(D_DMY.search(t).group(3))
     else:
         m = D_NAMED.search(t)
         if not m or m.group(1)[:3].lower() not in MONTHS:
@@ -237,7 +240,8 @@ def read_text_game(url, digits, default_slot='e', start=None):
     whole = re.compile(r'\d(?:[\s,.-]?\d){%d}$' % (digits - 1))
     while i < len(toks):
         t = toks[i]
-        dd = find_date(t) if len(t) <= 40 else None
+        # a result date stands alone on its line: skip "next draw ... Evening" and "last visited ... 8:14 pm" lines
+        dd = find_date(t) if len(t) <= 40 and ':' not in t and not re.search(r'evening|midday|draw', t, re.I) else None
         if dd:
             date, slot = dd, default_slot
         elif t.lower().strip(':') in SLOT_WORDS:
