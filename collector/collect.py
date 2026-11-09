@@ -72,9 +72,11 @@ GAMES = {
     'ma': ('ma', 'north', [('numbers-game-midday', 4, 'm'), ('numbers-game-evening', 4, 'e')]),
     'or': ('or', 'north', [('pick-4-1pm', 4, 'm'), ('pick-4-4pm', 4, 'm'), ('pick-4-7pm', 4, 'e'), ('pick-4-10pm', 4, 'e')]),
     'ri': ('ri', 'north', [('numbers-game-midday', 4, 'm'), ('numbers-game-evening', 4, 'e')]),
-    # canada: official sites. Ontario (OLG) and Atlantic (ALC) only serve results to their own pages,
-    # so they are not collected; paste them on the dashboard to add a day.
+    # canada: official sites for West/Quebec; Ontario and Atlantic Canada come from text-only result pages
+    # (parsers are tolerant and untested against the live markup - check the first Actions run's log)
     'wc': ('wc', 'canada', 'wclc'),
+    'on': ('on', 'canada', 'ontario'),
+    'ac': ('ac', 'canada', 'atlantic'),
     'qc': ('qc', 'canada', 'lotoquebec'),
     # caribbean: each draw lists 1st, 2nd and 3rd prize; only the 1st prize is kept
     'cr': ('vi', 'caribbean', [('pick-3-morning', 3, 'm'), ('pick-3-midday', 3, 'm'), ('pick-3-sunset', 3, 'e'), ('pick-3-evening', 3, 'e'),
@@ -185,7 +187,120 @@ def read_lotoquebec(days=6):
     return per, bad
 
 
-SPECIAL = {'dclottery': read_dc, 'wclc': read_wclc, 'lotoquebec': read_lotoquebec}
+# ---- text-only result pages (Ontario, Atlantic Canada, Michigan Daily 5) -------------------------------------------
+import html as _html
+MONTHS = {m: i for i, m in enumerate(['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'], 1)}
+D_NAMED = re.compile(r'([A-Za-z]{3,9})\.? (\d{1,2}),? (\d{4})')
+D_ISO = re.compile(r'(\d{4})-(\d\d)-(\d\d)')
+D_US = re.compile(r'(\d{1,2})/(\d{1,2})/(\d{4})')
+
+
+def page_tokens(h):
+    """Visible text of a page as a list of short stripped lines (tags become line breaks)."""
+    h = re.sub(r'(?is)<(script|style|noscript)\b.*?</\1>', ' ', h)
+    h = re.sub(r'(?s)<[^>]+>', '\n', h)
+    return [t for t in (x.strip() for x in _html.unescape(h).split('\n')) if t]
+
+
+def find_date(t):
+    m = D_ISO.search(t)
+    if m:
+        y, mo, d = map(int, m.groups())
+    elif D_US.search(t):
+        mo, d, y = map(int, D_US.search(t).groups())
+    else:
+        m = D_NAMED.search(t)
+        if not m or m.group(1)[:3].lower() not in MONTHS:
+            return None
+        mo, d, y = MONTHS[m.group(1)[:3].lower()], int(m.group(2)), int(m.group(3))
+    try:
+        return datetime.date(y, mo, d).isoformat()
+    except ValueError:
+        return None
+
+
+SLOT_WORDS = {'morning': 'm', 'midday': 'm', 'day': 'm', 'afternoon': 'm', 'evening': 'e', 'night': 'e'}
+
+
+def read_text_game(url, digits, default_slot='e', start=None):
+    """({date: [(order, number, slot)]}, bad) from a results page that shows date, optional Midday/Evening label, then the digits.
+
+    Only an exact run of `digits` single digits (or one token like 1-2-3) after a date is accepted; anything else
+    (extra bonus balls, a run of the wrong length, no date yet) is reported in `bad` and never stored.
+    """
+    toks = page_tokens(fetch(url))
+    if start:
+        toks = toks[next((i for i, t in enumerate(toks) if re.search(start, t, re.I)), 0):]
+    out, bad = {}, []
+    date, slot, i = None, default_slot, 0
+    one = re.compile(r'\d')
+    whole = re.compile(r'\d(?:[\s,.-]?\d){%d}$' % (digits - 1))
+    while i < len(toks):
+        t = toks[i]
+        dd = find_date(t) if len(t) <= 40 else None
+        if dd:
+            date, slot = dd, default_slot
+        elif t.lower().strip(':') in SLOT_WORDS:
+            slot = SLOT_WORDS[t.lower().strip(':')]
+        elif date and whole.fullmatch(t):
+            n = re.sub(r'\D', '', t)
+            if not any(sl == slot for _, _, sl in out.get(date, [])):
+                out.setdefault(date, []).append((0 if slot == 'm' else 1, n, slot))
+        elif date and one.fullmatch(t):
+            j = i
+            while j < len(toks) and one.fullmatch(toks[j]):
+                j += 1
+            run = ''.join(toks[i:j])
+            if len(run) == digits:
+                if not any(sl == slot for _, _, sl in out.get(date, [])):
+                    out.setdefault(date, []).append((0 if slot == 'm' else 1, run, slot))
+            else:
+                bad.append(f'{date} {slot} run of {len(run)}')
+            i = j
+            continue
+        i += 1
+    return out, bad
+
+
+def _per(draws, digits, per):
+    for d, lst in draws.items():
+        per[(d, digits)] = sorted(lst)
+
+
+def read_ontario():
+    """Ontario Pick-3 / Pick-4 (midday + evening) from lotteryguru.com result histories (~10 days, digits only)."""
+    per, bad = {}, []
+    for digits in (3, 4):
+        draws, b = read_text_game(f'https://lotteryguru.com/canada-lottery-results/ca-pick-{digits}/ca-pick-{digits}-results-history', digits)
+        _per(draws, digits, per)
+        bad += b
+        if not draws:
+            bad.append(f'Pick {digits}: no draws parsed')
+        time.sleep(0.6)
+    return per, bad
+
+
+def read_atlantic():
+    """Atlantic Canada Lotto 4 (one evening draw) from Lottery Post's past-results page."""
+    per, bad = {}, []
+    draws, b = read_text_game('https://www.lotterypost.com/results/ac/lotto4/past', 4)
+    _per(draws, 4, per)
+    bad += b
+    if not draws:
+        bad.append('Lotto 4: no draws parsed')
+    return per, bad
+
+
+def read_mi_daily5():
+    """Michigan Daily 5 (midday + evening) from Lottery Post. Returns ({date: [(order, number, slot)]}, bad)."""
+    draws, bad = read_text_game('https://www.lotterypost.com/results/mi/daily5/past', 5)
+    if not draws:
+        bad.append('Daily 5: no draws parsed')
+    return draws, bad
+
+
+SPECIAL = {'dclottery': read_dc, 'wclc': read_wclc, 'lotoquebec': read_lotoquebec,
+           'ontario': read_ontario, 'atlantic': read_atlantic}
 
 
 def collect(only=None, pause=0.6):

@@ -5,7 +5,7 @@ Runs on its own like collect.py (no Claude, standard library only):
   * Pick 5 from LotteryCorner game pages (DC-5 from the official DC Lottery site);
   * Pick 4 for every state is copied from the Almanac feed (docs/feed.json), which collect.py keeps
     current, so run collect.py first.
-Michigan Daily 5 isn't published anywhere a plain script can read, so it isn't collected.
+Michigan Daily 5 is read from Lottery Post's text results page (untested parser - see collect.read_text_game).
 Same safety rules as collect.py: only numbers actually read are stored, and a day is only
 replaced by a read with at least as many draws.
 """
@@ -28,6 +28,7 @@ P5 = {
     'de': [('play-5-day', 'm'), ('play-5', 'e')],
     'la': [('pick-5', 'e')],
     'dc': 'dclottery',
+    'mi': 'mi_daily5',
 }
 
 
@@ -43,6 +44,16 @@ def collect_p5(pause=0.6):
                     found.setdefault(d, {})[code] = sorted(lst)
             except Exception as e:
                 problems.append(f'dc: {e}')
+            continue
+        if games == 'mi_daily5':
+            try:
+                draws, bad = C.read_mi_daily5()
+                if bad:
+                    problems.append(f'mi: unreadable {bad}')
+                for d, lst in draws.items():
+                    found.setdefault(d, {})[code] = sorted(lst)
+            except Exception as e:
+                problems.append(f'mi: {e}')
             continue
         for order, (slug, slot) in enumerate(games):
             try:
