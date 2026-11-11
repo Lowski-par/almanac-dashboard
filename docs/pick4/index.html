@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pick 4 Ya Heard Me</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Roboto+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head><body>
+<div class="mast"><div class="mast-in">
+  <h1>Pick 4 Ya Heard Me</h1>
+  <div class="sub">Pick-4 · 100 Grand system · every state</div>
+  <div class="src">Reads the same daily results as Almanac Convergence. Every hit is shown next to what plain chance would give, so the board grades itself.</div>
+</div></div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="feedline"><span class="fdot" id="fdot"></span><span id="feedText">Loading results&hellip;</span>
+      <button class="ghost" id="feedSync" onclick="loadFeed(true)">Sync now</button></div>
+  </div>
+
+  <div class="card" id="hotCard">
+    <h2>Hottest numbers &mdash; most convergence <span class="count" id="hotCount"></span></h2>
+    <div class="note" style="margin:0 0 8px">Ranked by how many of the four systems point at the same boxed number right now: a <b>100 Grand</b> relative still to come from a seed drawn in the window, a <b>Big Quad Energy</b> relative still to come, a <b>My Lil Yeah</b> (Family Tree) relative still to come, and today&rsquo;s <b>Date Sum</b> group. Red is where the most signals stack. Numbers that already came in the window are left off.</div>
+    <div class="controls" style="margin-top:0">
+      <label>Region <select id="hotScope" onchange="renderHot()"><option value="se" selected>Southeast</option><option value="ne">Northeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option><option value="all">all states</option></select></label>
+      <label>Look back <select id="hotDays" onchange="renderHot()"><option>3</option><option selected>7</option><option>14</option></select> days</label>
+      <label>Show top <select id="hotN" onchange="renderHot()"><option>6</option><option selected>12</option><option>24</option></select></label>
+      <label>Need at least <select id="hotMin" onchange="renderHot()"><option value="2" selected>2 systems</option><option value="3">3 systems</option><option value="4">all 4 systems</option><option value="1">1 system</option></select></label>
+    </div>
+    <div id="hotBoard"></div>
+    <div id="hotScore" class="note"></div>
+    <div class="legend"><span><b style="color:var(--pen)">&#9632; Red</b> &mdash; top 6 most converged</span><span><b style="color:var(--mark-o)">&#9632; Orange</b> &mdash; next 6</span><span><b>G Q Y S</b> &mdash; which systems point here: <b>G</b> 100 Grand, <b>Q</b> Big Quad Energy, <b>Y</b> My Lil Yeah, <b>S</b> Date Sum</span><span>&ldquo;src&rdquo; = how many separate seeds / sets fired &middot; tap to make it the seed</span></div>
+  </div>
+
+  <div class="tabs">
+    <button class="ghost on" data-tab="drew" onclick="showTab('drew')">What Every State Drew</button>
+    <button class="ghost" data-tab="sums" onclick="showTab('sums')">Date Sums</button>
+    <button class="ghost" data-tab="pairs" onclick="showTab('pairs')">Missing Pairs</button>
+    <button class="ghost" data-tab="vibes" onclick="showTab('vibes')">Vibrations</button>
+    <button class="ghost" data-tab="grand" onclick="showTab('grand')">100 Grand</button>
+    <button class="ghost" data-tab="rel" onclick="showTab('rel')">Relatives</button>
+    <button class="ghost" data-tab="bqe" onclick="showTab('bqe')">Big Quad Energy</button>
+    <button class="ghost" data-tab="sf" onclick="showTab('sf')">Straight Finder</button>
+    <button class="ghost" data-tab="mly" onclick="showTab('mly')">My Lil Yeah</button>
+    <button class="ghost" data-tab="need" onclick="showTab('need')">State Specific BAAABY</button>
+  </div>
+
+  <!-- WHAT EVERY STATE DREW -->
+  <section id="tab-drew" class="card">
+    <h2>What every state drew <span class="count" id="drewCount"></span></h2>
+    <div class="controls">
+      <button class="ghost" onclick="stepDate(-1)">&larr; Day</button>
+      <label>Date <input type="date" id="drewDate" onchange="renderDrew()"></label>
+      <button class="ghost" onclick="stepDate(1)">Day &rarr;</button>
+      <label><input type="checkbox" id="drewShowP3" onchange="renderDrew()"> show Pick 3 too</label>
+    </div>
+    <div id="drewBody"></div>
+    <div class="note">Tap any Pick 4 number to load it as the 100 Grand seed. M = midday, E = evening; states with 3–4 draws a day list them in order.</div>
+  </section>
+
+  <!-- DATE SUMS (same setup as Almanac Convergence) -->
+  <section id="tab-sums" class="card" hidden>
+    <h2>Date Sum <span class="count">the date&rsquo;s digits added &rarr; that sum&rsquo;s numbers</span></h2>
+    <div class="controls">
+      <label>Day <input type="date" id="sumsDate" onchange="renderSums()"></label>
+      <label>Add up <select id="dsCount" onchange="renderSums()"><option value="md">month + day</option><option value="year">month + day + year</option></select></label>
+      <label>Play <select id="dsGroup" onchange="renderSums()"><option value="sum">the sum</option><option value="root">the root (one digit)</option></select></label>
+      <label>Region <select id="dsScope" onchange="renderSums()"><option value="all" selected>all states</option><option value="ne">Northeast</option><option value="se">Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option></select></label>
+    </div>
+    <div id="sumsBody"></div>
+    <div class="note" id="sumsNote"></div>
+  </section>
+
+  <!-- MISSING PAIRS -->
+  <section id="tab-pairs" class="card" hidden>
+    <h2>Missing pairs <span class="count" id="pairsCount"></span></h2>
+    <div class="controls">
+      <label>State <select id="pairsState" onchange="renderPairs()"></select></label>
+      <label>Look at
+        <select id="pairsK" onchange="renderPairs()"><option value="2">Pairs (2 digits)</option><option value="3">Triads (3 digits)</option></select>
+      </label>
+      <label>Days back
+        <select id="pairsWin" onchange="renderPairs()"><option value="60" selected>60 days</option><option value="90">90 days</option><option value="180">180 days</option></select>
+      </label>
+    </div>
+    <div id="pairsBody"></div>
+    <div id="pairsTally" style="margin-top:14px"></div>
+    <div class="note" id="pairsNote"></div>
+  </section>
+
+  <!-- VIBRATIONS -->
+  <section id="tab-vibes" class="card" hidden>
+    <h2>Vibrations <span class="count" id="vibesCount"></span></h2>
+    <div class="controls">
+      <label>Date <input type="date" id="vibesDate" onchange="renderVibes()"></label>
+    </div>
+    <div id="vibesBody"></div>
+    <div class="note" id="vibesNote"></div>
+  </section>
+
+  <!-- 100 GRAND -->
+  <section id="tab-grand" class="card" hidden>
+    <h2>100 Grand <span class="count" id="grandCount"></span></h2>
+    <div class="controls">
+      <label>State <select id="gState" onchange="seedFromState()"></select></label>
+      <label>Seed <input id="gSeed" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4 digits" style="width:90px" oninput="seedTyped()"></label>
+      <label>Region
+        <select id="gMode" onchange="renderGrand()">
+          <option value="state">This state only</option>
+          <option value="ne">Northeast</option>
+          <option value="se">Southeast</option>
+          <option value="ce">Central</option>
+          <option value="we">West</option>
+          <option value="ca">Canada</option>
+          <option value="cb">Caribbean</option>
+          <option value="any">All states</option>
+        </select>
+      </label>
+      <label>Look back
+        <select id="gBack" onchange="renderGrand()"><option>7</option><option selected>14</option><option>30</option></select> days
+      </label>
+    </div>
+    <div id="grandBody"></div>
+    <div id="nbBody" style="margin-top:14px"></div>
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">State roll-up — last <span id="ruDays">60</span> days of <span id="ruState"></span></summary>
+      <div class="controls" style="margin-top:6px"><label>Days <select id="ruN" onchange="renderRollup()"><option>30</option><option selected>60</option><option>90</option></select></label>
+        <label>Fires within <select id="ruK" onchange="renderRollup()"><option value="4">next 4 draws</option><option value="8" selected>next 8 draws</option><option value="12">next 12 draws</option></select></label></div>
+      <div id="rollupBody" class="note">Computing&hellip;</div>
+    </details>
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Scoreboard — every seed since June 1, this region</summary>
+      <div class="controls" style="margin-top:6px"><label>Hits counted within <select id="gWin" onchange="renderGrand()"></select></label></div>
+      <div id="scoreBody" class="note">Open to compute.</div>
+    </details>
+    <div class="note">How 100 Grand builds its list: <b>Family +</b> adds 1 to each digit, takes every order, then subtracts 1-2-3-4 by position. <b>Family &minus;</b> subtracts 1, every order, then adds 1-2-3-4. <b>Mirrors</b> flip any digits by +5. Singles give 24+24+15, doubles 12+12+15, double-doubles 6+6, trips 4+4. &ldquo;Chance&rdquo; is the hit rate a random list of the same size would get against the same draws.</div>
+  </section>
+
+  <!-- RELATIVES (backward: who pointed at this number) -->
+  <section id="tab-rel" class="card" hidden>
+    <h2>Relatives &mdash; who triggered this number <span class="count"></span></h2>
+    <div class="controls">
+      <label>Number <input id="lkNum" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4 digits" style="width:90px" oninput="lkTyped()"></label>
+      <label>State <select id="lkState" onchange="renderLookup()"></select></label>
+      <label>Region <select id="lkScope" onchange="renderLookup()"><option value="state" selected>this state</option><option value="ne">Northeast</option><option value="se">Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option><option value="all">all states</option></select></label>
+      <label>Last <select id="lkDays" onchange="renderLookup()"><option>7</option><option>14</option><option selected>35</option><option>60</option></select> days</label>
+    </div>
+    <div id="lookupBody" class="note" style="margin-top:10px"></div>
+    <div class="note">Backward look: every draw in the window whose 100 Grand list held this number. The forward look &mdash; what this number points to and what&rsquo;s still to come &mdash; is on the 100 Grand tab with it as the seed.</div>
+  </section>
+
+  <!-- BIG QUAD ENERGY -->
+  <section id="tab-bqe" class="card" hidden>
+    <h2>Big Quad Energy <span class="count" id="bqeCount"></span></h2>
+    <div class="controls">
+      <label>State <select id="bqState" onchange="renderBQE()"></select></label>
+      <label>Region <select id="bqScope" onchange="renderBQE()"><option value="state">this state</option><option value="ne">Northeast</option><option value="se" selected>Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option><option value="all">all states</option></select></label>
+      <label>Look back <select id="bqDays" onchange="renderBQE()"><option>7</option><option selected>14</option><option>30</option><option>60</option></select> days</label>
+      <label>Sort <select id="bqSort" onchange="renderBQE()"><option value="strength">strongest set first</option><option value="quad">by quad</option></select></label>
+    </div>
+    <div id="bqeBody"></div>
+    <div class="note">Each quad has the 10 relatives from Marcus&rsquo;s chart. <b style="color:var(--pen)">&#10005;</b> = came in the window (boxed; tap for where), <b style="color:var(--green)">&#10003;</b> = still to come. &ldquo;Strength&rdquo; is how many of the 10 came against how many a random set of 10 singles would have in the same draws &mdash; 1.00x is plain chance. The quad log at the bottom shows every quad in the feed and how its set behaved around it.</div>
+  </section>
+
+  <!-- STRAIGHT FINDER (same as Almanac Convergence) -->
+  <section id="tab-sf" class="card" hidden>
+    <h2>Straight Finder <span class="count">which way is longest out</span></h2>
+    <div class="controls">
+      <label>Number <input id="sfBox" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1122" style="width:90px" oninput="sfTyped()"></label>
+      <label>Draw <select id="sfSlot" onchange="renderStraight()"><option value="m" selected>Midday</option><option value="e">Evening</option><option value="b">Both</option></select></label>
+      <label>Region <select id="sfRegion" onchange="document.getElementById('sfState').value='';renderStraight()"><option value="all">All states</option><option value="ne">Northeast</option><option value="se">Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option></select></label>
+      <label>State <select id="sfState" onchange="renderStraight()"><option value="">Any</option></select></label>
+    </div>
+    <div id="sfOut" class="note" style="margin-top:10px">Type a four-digit number.</div>
+  </section>
+
+  <!-- MY LIL YEAH — Pick 4 Family Tree -->
+  <section id="tab-mly" class="card" hidden>
+    <h2>My Lil Yeah <span class="count">Family Tree &mdash; a main number and the relatives that hit around it</span></h2>
+    <div class="controls">
+      <label>Number <input id="mlyNum" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4 digits" style="width:90px" oninput="mlyTyped()"></label>
+      <label>State <select id="mlyState" onchange="renderMLY()"></select></label>
+      <label>Region <select id="mlyScope" onchange="renderMLY()"><option value="state">this state</option><option value="ne">Northeast</option><option value="se" selected>Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option><option value="all">all states</option></select></label>
+      <label>Look back <select id="mlyDays" onchange="renderMLY()"><option>7</option><option selected>14</option><option>30</option></select> days</label>
+    </div>
+    <div id="mlyBody" class="note" style="margin-top:10px">Type a four-digit number, or tap one anywhere on the page.</div>
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Live board &mdash; mains drawn in the window and which relatives are still to come</summary><div id="mlyBoard" class="note">Open to compute.</div></details>
+    <details style="margin-top:10px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Does the book work? &mdash; scorecard on every draw in the feed</summary><div id="mlyScore" class="note">Open to compute.</div></details>
+    <div class="note">From the <i>Pick 4: Family Tree</i> book: look up any Pick 4 number (boxed), and the numbers in its row are the relatives expected to hit around it. The book says it works for all-state play and for tracking one state, and that relatives of a number that has <b>repeated</b> are stronger. Every claim is scored here against chance.</div>
+  </section>
+
+  <!-- STATE NEEDS — all four systems as one unit, per state -->
+  <section id="tab-need" class="card" hidden>
+    <h2>State Specific BAAABY <span class="count">all four systems as one unit &mdash; what fired in this state, what&rsquo;s due here</span></h2>
+    <div class="controls">
+      <label>State <select id="ndState" onchange="renderNeed()"></select></label>
+      <label>Look back <select id="ndDays" onchange="renderNeed()"><option>30</option><option selected>60</option><option>90</option></select> days</label>
+      <label>Region help <select id="ndRegion" onchange="renderNeed()"><option value="0">this state only</option><option value="0.5" selected>add half of the region average</option><option value="1">add the region average</option></select></label>
+      <label>Show top <select id="ndN" onchange="renderNeed()"><option>10</option><option selected>20</option><option>40</option></select></label>
+    </div>
+    <div id="needBody" class="note" style="margin-top:10px"></div>
+    <div class="famh" style="margin-top:14px">Where should a number fall? <span class="me">type a number &rarr; every state ranked by how many of its relatives have fallen there</span></div>
+    <div class="controls" style="margin-top:4px"><label>Number <input id="ndNum" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="6666" style="width:90px" oninput="ndTyped()"></label></div>
+    <div id="needWhere" class="note"></div>
+    <details style="margin-top:14px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Does pull work? &mdash; scorecard for this state</summary><div id="needScore" class="note">Open to compute.</div></details>
+    <div class="note"><b>Pull</b> = how many relatives of a number have fallen in this state in the window, counting all four systems: <b>G</b> seeds drawn here whose 100 Grand list holds it, <b>Q</b> Big Quad relatives of its set that fell here, <b>Y</b> Family Tree relatives that fell here, <b>S</b> +1 if it is in today&rsquo;s Date Sum group. Numbers that already came in the window are left off the &ldquo;due&rdquo; list. Chance is shown beside every count: a number with many relatives is usually a single (24 ways) and would be expected more often anyway.</div>
+  </section>
+</div>
+<script src="tree.js"></script>
+<script src="app.js"></script>
+</body></html>
