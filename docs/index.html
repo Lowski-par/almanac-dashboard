@@ -119,12 +119,6 @@ table.dst td{font-size:12px;vertical-align:top}
 </div></div>
 
 <div class="wrap">
-<div id="liveLink" style="display:none;background:#FFF4D6;border:2px solid #FF9E4A;padding:10px 12px;margin:0 0 14px;font-size:13px;line-height:1.5;color:#0B1836">
-  <b>This copy doesn&rsquo;t refresh on its own.</b> For results that update all day, open
-  <span style="font-family:'Roboto Mono',monospace;font-weight:700;user-select:all;-webkit-user-select:all">lowski-par.github.io/almanac-dashboard/</span>
-  <button class="ghost" style="margin-left:6px;padding:3px 8px" onclick="navigator.clipboard&&navigator.clipboard.writeText('https://lowski-par.github.io/almanac-dashboard/');this.textContent='Copied'">Copy link</button>
-</div>
-<script>if(!/github\.io$/.test(location.hostname))document.getElementById('liveLink').style.display='block';</script>
 
 <div id="viewBanner" class="viewbanner" style="display:none"></div>
 
@@ -309,6 +303,20 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
 </div>
 
 <div class="card">
+  <h2>Pair Sets <span class="count">type a pair &rarr; its ten sets, longest out first</span></h2>
+  <div class="panelbody" id="psPanel">
+    <div class="controls" style="margin-top:0;margin-bottom:10px">
+      <label>Pair <input id="psPair" inputmode="numeric" maxlength="2" placeholder="22" style="width:64px" oninput="renderPairSets()"></label>
+      <label>Count draws in <select id="psScope" onchange="renderPairSets()"><option value="">Any state</option></select></label>
+      <label>Hot = came in last <select id="psHot" onchange="renderPairSets()"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select></label>
+      <span style="font-size:12px;color:var(--ink-soft)">45 &rarr; 045 145 245 345 445 455 456 457 458 459. The one longest out is flagged; each set shows where it is hot and which states need it.</span>
+    </div>
+    <div id="psOut"><div class="empty">Type a two-digit pair, like 22 or 45.</div></div>
+  </div>
+  <div class="baseline" id="psBase"></div>
+</div>
+
+<div class="card">
   <h2>Lookup a number <span class="count">every book, ticked or not</span></h2>
   <div class="controls" style="margin-top:12px">
     <input id="lookupBox" placeholder="e.g. 794" maxlength="3" style="width:110px" oninput="doLookup()">
@@ -424,5 +432,5 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
 
 </div>
 
-<script src="app-23.js?v=hotall1"></script>
+<script src="app-24.js"></script>
 </body></html>
