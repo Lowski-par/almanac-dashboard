@@ -427,7 +427,15 @@ function renderGrand(){
     const L = relAll.filter(r => r.g===gname); if(!L.length) continue;
     lb += `<div class="hitrow"><span class="when">${gname}</span>${L.map(r => whereB[box(r.n)] ? `<span class="chip gone" title="${whereTxt(r)}" onclick="useSeed('${r.n}')">${r.n}<span class="mk">&#10005;</span></span>` : `<span class="chip watch" onclick="useSeed('${r.n}')">${r.n}<span class="mk">&#10003;</span></span>`).join('')}</div>`;
   }
-  if(cameB.length) lb += `<div class="note" style="margin-top:6px">${cameB.map(r => `<b>${r.n}</b> &rarr; ${whereTxt(r)}`).join(' &nbsp;|&nbsp; ')}</div>`;
+  if(cameB.length){
+    // one line per draw, in date order (oldest first, midday before evening); relatives that share a box
+    // (e.g. 3085 / 3580 / 8035 / 8530) are listed together instead of repeating the same draws
+    const relOf = {}; cameB.forEach(r => { const b = box(r.n); (relOf[b] = relOf[b] || []); if(!relOf[b].includes(r.n)) relOf[b].push(r.n); });
+    const ev = []; Object.keys(relOf).forEach(b => whereB[b].forEach(w => ev.push({...w, rel: relOf[b]})));
+    const slot = w => w.s === 'm' ? 0 : 1;
+    ev.sort((a,b) => a.d < b.d ? -1 : a.d > b.d ? 1 : slot(a) - slot(b) || (nm(a.st) < nm(b.st) ? -1 : 1));
+    lb += `<div class="famh" style="margin-top:8px">Where they came &mdash; in date order</div><div class="tscroll"><table class="tbl"><tr><th>date</th><th></th><th>state</th><th>came</th><th>relative of ${seed}</th></tr>${ev.map(w => `<tr><td>${fmtDate(w.d).replace(/, \d{4}$/,'')}</td><td class="me">${w.s==='m'?'mid':w.s==='e'?'eve':''}</td><td class="stname">${nm(w.st)}</td><td>${chip(w.n,'gone')}</td><td class="me">${w.rel.join(' / ')}</td></tr>`).join('')}</table></div>`;
+  }
   lb += '</div>';
   let html = `<div class="seedbar"><span class="seedbig">${seed}</span><span class="seedkind">${kind(seed)} &middot; ${all.length} numbers</span>
     <span class="seedkind">${F.since ? `last drawn in ${st==='all'?'the feed':nm(st)} on ${F.since}` : `not drawn ${st==='all'?'anywhere':'in '+nm(st)} yet &mdash; checking from today`}</span></div>`;
