@@ -6,10 +6,7 @@ name: Update lottery results
 # GitHub may start a scheduled run a few minutes late; the next run picks up anything missed.
 on:
   schedule:
-    - cron: '20 * * * *'
-    - cron: '20 * * * *'
-    - cron: '20 * * * *'
-    - cron: '20 * * * *'
+    - cron: '23 * * * *'   # hourly; re-saved Nov 14 2026 so GitHub picks the schedule back up after the suspension
   workflow_dispatch: {}
 
 permissions:
