@@ -110,7 +110,7 @@ function initControls(){
   const todayCT = new Date().toLocaleDateString('en-CA', { timeZone:'America/Chicago' }); const top = todayCT > last ? todayCT : last;
   for(const id of ['drewDate','sumsDate','vibesDate']){ const el = document.getElementById(id); el.min = DATES[0]; el.max = top; if(!el.value) el.value = id === 'sumsDate' ? top : last; else if(id === 'sumsDate' && el.value === last && top > last) el.value = top; }
   const sts = Object.keys(SEQ).sort((a,b) => nm(a).localeCompare(nm(b)));
-  for(const id of ['pairsState','gState','lkState','bqState','mlyState','ndState']){
+  for(const id of ['pairsState','gState','lkState','bqState','mlyState','ndState','mdState']){
     const sel = document.getElementById(id);
     if(sel.options.length) continue;
     sel.innerHTML = (id!=='pairsState' ? '<option value="all">All states</option>' : '') + sts.map(c => `<option value="${c}">${nm(c)}</option>`).join('');
@@ -122,7 +122,7 @@ function initControls(){
   }
   if(!document.getElementById('gSeed').value) seedFromState(true);
 }
-function renderAll(){ renderDrew(); renderSums(); renderPairs(); renderVibes(); renderGrand(); renderBQE(); renderHot(); sfFillStates(); renderMLY(); renderNeed(); }
+function renderAll(){ renderDrew(); renderSums(); renderPairs(); renderVibes(); renderGrand(); renderBQE(); renderHot(); sfFillStates(); renderMLY(); renderNeed(); renderMD(); }
 function stepDate(k){ const el = document.getElementById('drewDate'); el.value = isoAdd(el.value, k); renderDrew(); }
 
 /* ---------- 1. what every state drew ---------- */
@@ -361,6 +361,81 @@ function renderNeighbors(seed, st, mode){
     <div class="verdict ${fellN >= 3 ? '' : ''}"><b>Last 2 days in ${label}:</b> <b>${fellN}</b> of ${rows.length} neighbors fell &mdash; chance about <b>${exp2.toFixed(1)}</b> (${draws2} draws). ${seed} itself: ${seedHot ? letters(seedHot)+' on the hot board' : 'not on the hot board'}.</div>
     <div class="tscroll"><table class="tbl"><tr><th>#</th><th>number</th><th>change</th><th>days out</th><th>last seen</th><th>fell last 2 days</th><th>hot</th></tr>${rows.map((r,i) => `<tr><td class="me">${i+1}</td><td>${chip(r.last ? r.last.n : r.b, (H.get(r.b)||{types:new Set()}).types.size >= 3 ? 'box' : '')}</td><td class="me">${r.how.join(' / ')}</td><td style="font-weight:700">${r.days===null ? 'never' : r.days}</td><td>${r.last ? '<span class="me">'+nm(r.last.c)+' '+r.last.d+'</span>' : '<span class="me">never in the record</span>'}</td><td>${r.fell.length ? '<b style="color:var(--pen)">&#10005; '+r.fell.map(f => f.n+' '+nm(f.c)+' '+f.d.slice(5)).join(', ')+'</b>' : ''}</td><td>${letters(H.get(r.b))}</td></tr>`).join('')}</table></div>
     <div class="note">Longest out at the top. Blue chip = three or more systems point at that neighbor. Hot uses the Hottest card&rsquo;s settings (${N}-day window). Year-long check, every state: a neighbor falls somewhere in the 2 days before a number comes 91% of the time &mdash; and before every other number 91% of the time too (1.00&times;); same state, previous 6 draws: 10.4% vs 10.2% by chance. A cluster of neighbors is normal for any number, hot or not.</div>`;
+}
+
+/* ---------- Mirror Doubles ----------
+   Marcus's chart: for each pair of different mirror groups (0-5 1-6 2-7 3-8 4-9) there is one single,
+   e.g. 0156, and four mirror doubles 0011 5566 0066 5511. 10 sets, 50 numbers, each number in one set.
+   Board: which members came in the window (red X) and which are still out (green check). Like the
+   Almanac Mirror Rundown, a set with two or more members in is READY and its open members are the play.
+   Hottest: the open members scored by every system (G Q Y P N S, ranked within type as on State Specific)
+   plus how many of their set mates came. */
+const MD_SETS = (() => { const out = []; for(let a=0;a<5;a++) for(let b=a+1;b<5;b++){ const A=a+5, B=b+5;
+  out.push({ main: box(''+a+b+A+B), dbl: [box(''+a+a+b+b), box(''+A+A+B+B), box(''+a+a+B+B), box(''+A+A+b+b)], name: ''+a+b+A+B }); } return out; })();
+const MD_OF = (() => { const m = {}; MD_SETS.forEach((S,i) => { m[S.main] = {i, kind:'single'}; S.dbl.forEach(d => m[d] = {i, kind:'double'}); }); return m; })();
+const mdShow = b => { const k = MD_OF[b]; if(!k) return b; const S = MD_SETS[k.i]; if(k.kind==='single') return S.name; // show doubles in the chart's order/spelling
+  const [a,bb,A,B] = S.name.split(''); const ord = [a+a+bb+bb, A+A+B+B, a+a+B+B, A+A+bb+bb]; return ord[S.dbl.indexOf(b)]; };
+function renderMD(){
+  const el = document.getElementById('mdBody'); if(!el || !DATES.length) return;
+  const st = document.getElementById('mdState').value, scope = document.getElementById('mdScope').value, N = +document.getElementById('mdDays').value || 14;
+  const regKey = Object.keys(REGION4).find(k => REGION4[k].states.includes(st));
+  const states = st === 'all' || scope === 'all' ? Object.keys(SEQ) : scope === 'region' && regKey ? REGION4[regKey].states.filter(c => SEQ[c]) : [st];
+  const where = st === 'all' || scope === 'all' ? 'all states' : scope === 'region' && regKey ? REGION4[regKey].name : nm(st);
+  const asOf = DATES[DATES.length-1], start = isoAdd(asOf, -(N-1)), tomorrow = isoAdd(asOf, 1);
+  // every draw in scope, date order; hits = draws whose box is in a set
+  const all = []; for(const c of states) for(const x of (SEQ[c]||[])) all.push({...x, c});
+  all.sort((a,b) => a.d < b.d ? -1 : a.d > b.d ? 1 : (a.s==='m'?0:1) - (b.s==='m'?0:1));
+  const win = all.filter(x => x.d >= start), hits = win.filter(x => MD_OF[box(x.n)]);
+  const lastSeen = {}; for(const x of all){ const b = box(x.n); if(MD_OF[b]) lastSeen[b] = x; }
+  const cameIn = {}; hits.forEach(x => (cameIn[box(x.n)] = cameIn[box(x.n)] || []).push(x));
+  const setCover = (24 + 4*6) / 10000, expSet = win.length * setCover;
+  // all-systems score for the 50 numbers (state picked, or all states)
+  const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const sysStates = st === 'all' ? Object.keys(SEQ) : [st];
+  const L = needList(sysStates, tomorrow, 60, st==='all' ? 0 : 0.5, regKey, withYear, root); const SC = {}; L.all.forEach(r => SC[r.b] = r);
+  const letters = r => r ? ['G','Q','Y','P','N','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('') : '';
+  const drawsWeek = Math.round(win.length / N * 7);
+  // board
+  const sets = MD_SETS.map((S,i) => { const mem = [S.main, ...S.dbl]; const came = mem.filter(b => cameIn[b]); return {S, i, mem, came, ready: came.length >= 2, n: hits.filter(x => MD_OF[box(x.n)].i === i).length}; });
+  const chipFor = b => { const c = cameIn[b]; const lab = mdShow(b);
+    return c ? `<span class="chip gone" title="${c.map(x => x.n+' '+nm(x.c)+' '+x.d.slice(5)+(x.s?x.s.toUpperCase():'')).join(' · ')}" onclick="useSeed('${lab}')">${lab}<span class="mk">&#10005;${c.length>1?c.length:''}</span></span>`
+             : `<span class="chip watch" onclick="useSeed('${lab}')">${lab}<span class="mk">&#10003;</span></span>`; };
+  let board = `<div class="tscroll"><table class="tbl"><tr><th>set</th><th>single</th><th>mirror doubles</th><th>came</th><th>hits</th><th></th></tr>`;
+  sets.forEach(x => { board += `<tr><td style="font-family:'Roboto Mono',monospace;font-weight:700">${x.S.name}</td><td>${chipFor(x.S.main)}</td><td>${x.S.dbl.map(chipFor).join('')}</td><td>${x.came.length} / 5</td><td style="font-weight:700">${x.n} <span class="me">/ ${expSet.toFixed(1)}</span></td><td>${x.ready ? '<b style="color:var(--pen)">READY</b>' : ''}</td></tr>`; });
+  board += `</table></div>`;
+  const totHits = hits.length, totExp = expSet * 10;
+  // hottest: open members, all systems + set mates that came
+  const open = []; sets.forEach(x => x.mem.forEach(b => { if(cameIn[b]) return; const r = SC[b]; const sys = r ? r.str : 0; const mates = Math.min(3, x.came.length);
+    open.push({b, set:x.S.name, kind: MD_OF[b].kind, r, sys, mates, ready: x.ready, score: sys + mates, last: lastSeen[b]}); }));
+  open.sort((a,b) => b.score - a.score || b.sys - a.sys || (a.b < b.b ? -1 : 1));
+  const hot = open.slice(0, 12);
+  const hotRow = (h,i) => `<tr><td class="me">${i+1}</td><td>${chip(mdShow(h.b), i<3?'hotr':i<6?'warmo':'')}</td><td class="me">${h.set} &middot; ${h.kind}</td><td style="font-weight:700">${h.score.toFixed(1)}</td><td>${letters(h.r)}${h.mates ? `<i style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;background:#6B3FA0">M${h.mates}</i>` : ''}</td><td class="me">${h.last ? daysBetween(h.last.d, asOf)+'d &middot; '+nm(h.last.c) : 'not in the record'}</td><td class="me">${pct(1 - Math.pow(1 - boxCover([h.b])/10000, drawsWeek))}</td></tr>`;
+  // hits in date order
+  const hitRows = hits.map(x => `<tr><td>${fmtDate(x.d).replace(/, \d{4}$/,'')}</td><td class="me">${x.s==='m'?'mid':x.s==='e'?'eve':''}</td><td class="stname">${nm(x.c)}</td><td>${chip(x.n,'gone')}</td><td class="me">${MD_SETS[MD_OF[box(x.n)].i].name} &middot; ${MD_OF[box(x.n)].kind}</td></tr>`).join('');
+  el.innerHTML = `<div class="verdict"><b>Last ${N} days in ${where}:</b> the 10 sets hit <b>${totHits}</b> times in ${win.length.toLocaleString()} draws &mdash; chance would give about <b>${totExp.toFixed(1)}</b>. ${sets.filter(x => x.ready).length} of 10 sets are READY (two or more members in).</div>
+    <div class="famh">The 10 sets &mdash; &#10005; came in the window (hover for where), &#10003; still out</div>${board}
+    <div class="famh" style="margin-top:12px">Hottest open members &mdash; every system plus the set (red = top 3, orange = next 3)</div>
+    <div class="tscroll"><table class="tbl"><tr><th>#</th><th>number</th><th>set</th><th>score</th><th>systems</th><th>last seen</th><th>chance this week</th></tr>${hot.map(hotRow).join('')}</table></div>
+    <div class="note"><b>Score</b> = the State Specific score for ${st==='all'?'all states':nm(st)} (one point per system: <b>G</b> 100 Grand / Relatives, <b>Q</b> Big Quad Energy, <b>Y</b> My Lil Yeah, <b>P</b> longest-out pairs/triads, <b>N</b> neighbor fell in 2 days, <b>S</b> today&rsquo;s Date Sum &mdash; each ranked within its type) plus <b>M</b>, how many of its set mates came in the window (up to 3). Tap a number to open it on 100 Grand.</div>
+    <div class="famh" style="margin-top:12px">Every hit in the window &mdash; in date order</div>
+    ${hits.length ? `<div class="tscroll"><table class="tbl"><tr><th>date</th><th></th><th>state</th><th>came</th><th>set</th></tr>${hitRows}</table></div>` : '<div class="note">None yet.</div>'}
+    <details style="margin-top:12px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Does the set follow? &mdash; whole year check</summary><div id="mdTest" class="note"><button class="ghost" onclick="mdYearTest()">Compute (a few seconds)</button></div></details>
+    <div class="note">Each set is 5 numbers: a single (24 ways) and four double-doubles (6 ways each) &mdash; together 48 of the 10,000 straights, so a set is expected about once every 208 draws anywhere. Hits are boxed (any order).</div>`;
+}
+// whole history, all states: when a set member falls, does another member of the same set come within 7 days?
+// And the READY rule: two members inside 7 days, does another come in the next 7?
+function mdYearTest(){
+  const out = document.getElementById('mdTest'); if(!out) return;
+  const byDate = {}; for(const c of Object.keys(SEQ)) for(const x of SEQ[c]) (byDate[x.d] = byDate[x.d] || []).push(box(x.n));
+  const last = DATES[DATES.length-1]; const W = b => boxCover([b]);
+  const next7 = d => { const a = []; for(let k=1;k<=7;k++){ const dd = isoAdd(d,k); if(dd > last) return null; (byDate[dd]||[]).forEach(b => a.push(b)); } return a; };
+  let n=0,h=0,e=0, rn=0,rh=0,re=0; const recent = {};
+  for(const d of DATES){ const nx = next7(d); for(const b of (byDate[d]||[])){ const k = MD_OF[b]; if(!k) continue; const S = MD_SETS[k.i]; const mem = [S.main, ...S.dbl];
+      const rec = (recent[k.i] = (recent[k.i] || []).filter(x => x.d >= isoAdd(d,-7))); const cameSet = new Set([b, ...rec.filter(x => x.b !== b).map(x => x.b)]);
+      if(nx){ const others = mem.filter(o => o !== b); n++; if(others.some(o => nx.includes(o))) h++; e += 1 - Math.pow(1 - others.reduce((a,o) => a+W(o),0)/10000, nx.length);
+        if(cameSet.size >= 2){ const rest = mem.filter(o => !cameSet.has(o)); rn++; if(rest.some(o => nx.includes(o))) rh++; re += 1 - Math.pow(1 - rest.reduce((a,o) => a+W(o),0)/10000, nx.length); } }
+      rec.push({d, b}); } }
+  out.innerHTML = `Since ${fmtDate(DATES[0])}, every state: a set member fell <b>${n.toLocaleString()}</b> times. Another member of the same set came within 7 days <b>${h.toLocaleString()}</b> times (${(100*h/n).toFixed(0)}%) &mdash; chance <b>${Math.round(e).toLocaleString()}</b> (${(100*e/n).toFixed(0)}%), ${(h/e).toFixed(2)}&times;.<br>READY (two members inside 7 days): ${rn.toLocaleString()} times, another came in the next 7 days <b>${rh.toLocaleString()}</b> (${(100*rh/Math.max(rn,1)).toFixed(0)}%) vs chance <b>${Math.round(re).toLocaleString()}</b> (${(100*re/Math.max(rn,1)).toFixed(0)}%), ${(rh/Math.max(re,1)).toFixed(2)}&times;.`;
 }
 
 const GCACHE = new Map();
@@ -841,7 +916,7 @@ function needList(states, asOf, N, w, regKey, withYear, root){
   // and the combined score is ranked within type once more, so each type's strongest number reaches the top
   const live = rows.filter(r => !r.fell && r.str > 0); const byK2 = {}; live.forEach(r => (byK2[r.k] = byK2[r.k] || []).push(r.str)); for(const k in byK2) byK2[k].sort((a,b) => a-b);
   live.forEach(r => { const arr = byK2[r.k]; r.rank = arr.length > 1 ? below(arr, r.str)/(arr.length-1) : 1; });
-  return { rows: rows.filter(r => !r.fell && r.str > 0).sort((a,b) => b.rank-a.rank || b.str-a.str || b.sys-a.sys || (a.b<b.b?-1:1)), P, own, sum };
+  return { all: rows, rows: rows.filter(r => !r.fell && r.str > 0).sort((a,b) => b.rank-a.rank || b.str-a.str || b.sys-a.sys || (a.b<b.b?-1:1)), P, own, sum };
 }
 const KINDNAME = {24:'single', 12:'double', 6:'2 doubles', 4:'triple', 1:'quad'};
 function renderNeed(){
