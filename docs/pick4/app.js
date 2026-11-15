@@ -392,7 +392,7 @@ function renderMD(){
   // all-systems score for the 50 numbers (state picked, or all states)
   const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
   const sysStates = st === 'all' ? Object.keys(SEQ) : [st];
-  const L = needList(sysStates, tomorrow, 60, st==='all' ? 0 : 0.5, regKey, withYear, root); const SC = {}; L.all.forEach(r => SC[r.b] = r);
+  const L = needList(sysStates, tomorrow, 60, st==='all' ? 0 : 0.5, regKey, withYear, root, dsPlayDay()); const SC = {}; L.all.forEach(r => SC[r.b] = r);
   const letters = r => r ? ['G','Q','Y','P','N','V','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('') : '';
   const drawsWeek = Math.round(win.length / N * 7);
   // board
@@ -711,19 +711,19 @@ function hotBoard(asOf, states, N, withYear, root){
 // Straight Finder gives the arrangement that has been out longest.
 const HOTLET = ['G','Q','Y','P','N','V','M','S'];
 const hotLetters = r => HOTLET.filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.m,r.s][k]>0).map(t => `<i class="h${t}">${t}</i>`).join('');
-function hotPicks(states, asOfMorning, N, MIN, withYear, root){
-  return needList(states, asOfMorning, N, 0, null, withYear, root).rows.filter(r => r.sys >= MIN);
+function hotPicks(states, asOfMorning, N, MIN, withYear, root, dsDay){
+  return needList(states, asOfMorning, N, 0, null, withYear, root, dsDay).rows.filter(r => r.sys >= MIN);
 }
 function renderHot(){
   const scope = document.getElementById('hotScope').value, N = +document.getElementById('hotDays').value || 7, TOP = +document.getElementById('hotN').value || 12, MIN = +document.getElementById('hotMin').value || 2;
   const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
   const states = scopeStates(scope, 'all'), label = scopeName(scope, 'all'); const asOf = DATES[DATES.length-1];
-  const top = hotPicks(states, isoAdd(asOf, 1), N, MIN, withYear, root).slice(0, TOP);
+  const top = hotPicks(states, isoAdd(asOf, 1), N, MIN, withYear, root, dsPlayDay()).slice(0, TOP);
   // straight finder: last time each arrangement came in this region (both draws)
   const lastStr = {}; for(const c of states) for(const x of (SEQ[c]||[])) if(!lastStr[x.n] || x.d > lastStr[x.n]) lastStr[x.n] = x.d;
   const longest = b => sfPerms(b).map(p => ({p, d:lastStr[p] || ''})).sort((a,c) => a.d < c.d ? -1 : a.d > c.d ? 1 : (a.p<c.p?-1:1))[0];
   const KN = {24:'single',12:'double',6:'2 doubles',4:'triple',1:'quad'};
-  document.getElementById('hotCount').textContent = `${label} · ${N}-day window · ${fmtDate(asOf)}`;
+  document.getElementById('hotCount').textContent = `${label} · ${N}-day window · draws through ${fmtDate(asOf)} · ${dsLabel()}`;
   document.getElementById('hotBoard').innerHTML = top.length ? '<div class="heatgrid">' + top.map((r,i) => { const L = longest(r.b);
       return `<div class="heat ${i<6?'hot':i<12?'warm':''}" onclick="useSeed('${L.p}')"><div class="hn">${L.p}</div><div class="ht">${hotLetters(r)}</div><div class="hs">${KN[r.k]} &middot; ${r.str.toFixed(1)}/8 &middot; straight out ${L.d ? daysBetween(L.d, asOf)+'d' : 'all year'}</div></div>`; }).join('') + '</div>'
     : '<div class="soon">Nothing meets that bar right now &mdash; loosen "need at least".</div>';
@@ -916,12 +916,18 @@ const CDCACHE = new Map();
 function comboDates(states){ const key = states.slice().sort().join(',') + '|' + DATES.length; if(CDCACHE.has(key)) return CDCACHE.get(key);
   const out = {}; for(const c of states) for(const x of (SEQ[c]||[])) for(const k of [2,3]) for(const t of cof(k, x.n)) (out[k+t] = out[k+t] || []).push(x.d);
   for(const k in out){ out[k].sort(); } if(CDCACHE.size > 20) CDCACHE.clear(); CDCACHE.set(key, out); return out; }
+// the day Date Sum is played for on the live boards = the day shown on the Date Sums tab (today by default),
+// with the same Add up / Play settings, so the S letter always matches that tab
+function dsPlayDay(){ const v = (document.getElementById('sumsDate')||{}).value; return v || todayCT(); }
+function dsChanged(){ renderSums(); renderHot(); renderNeed(); renderMD(); }
+function dsLabel(){ const day = dsPlayDay(), withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const { sum } = dsDateSum(day, withYear); const [y,m,d] = day.split('-'); return 'Date Sum ' + (+m) + '/' + (+d) + (withYear ? '/' + y : '') + ' ' + (root ? 'root ' + dsRoot(sum) : 'sum ' + sum); }
 const KINDW = b => boxCover([b]);   // 24 single, 12 double, 6 double-double, 4 triple, 1 quad
-function needList(states, asOf, N, w, regKey, withYear, root){
+function needList(states, asOf, N, w, regKey, withYear, root, dsDay){
   const start = isoAdd(asOf, -N); const own = windowDraws(states, start, asOf); const P = pullCounts(own);
   let PR = null, nOthers = 1;
   if(w > 0 && regKey && states.length === 1){ const others = REGION4[regKey].states.filter(c => c!==states[0] && SEQ[c]); nOthers = Math.max(1, others.length); PR = pullCounts(windowDraws(others, start, asOf)); }
-  const { sum } = dsDateSum(asOf, withYear); const inSum = new Set(); const ls = dsList(sum, root); for(const k in ls.byWays) ls.byWays[k].forEach(b => inSum.add(b));
+  const { sum } = dsDateSum(dsDay || asOf, withYear); const inSum = new Set(); const ls = dsList(sum, root); for(const k in ls.byWays) ls.byWays[k].forEach(b => inSum.add(b));
   const came = new Set(own.map(x => box(x.n)));
   // P = missing pairs / triads: the 5 longest-out pairs and 5 longest-out triads here (by days), counted in each number
   const CD = comboDates(states); const lastP = {};
@@ -961,7 +967,7 @@ function renderNeed(){
   const states = st==='all' ? Object.keys(SEQ) : [st]; const asOf = DATES[DATES.length-1]; const tomorrow = isoAdd(asOf, 1);
   const regKey = Object.keys(REGION4).find(k => REGION4[k].states.includes(st));
   const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
-  const L = needList(states, tomorrow, N, w, regKey, withYear, root); const P = L.P, own = L.own;
+  const L = needList(states, tomorrow, N, w, regKey, withYear, root, dsPlayDay()); const P = L.P, own = L.own;
   const lastSeen = {}; for(const c of states) for(const x of (SEQ[c]||[])) lastSeen[box(x.n)] = x;
   const dueAll = L.rows; const due = dueAll.slice(0, 12), more = dueAll.slice(12, Math.max(TOP, 12));
   const drawsWeek = Math.round(own.length/N*7);
@@ -973,7 +979,7 @@ function renderNeed(){
     return `<tr><td>${i+1}</td><td>${chip(r.b, i<6?'hotr':i<12?'warmo':'')}</td><td class="me">${KINDNAME[r.k]}</td><td style="font-weight:700">${r.str.toFixed(1)}<span class="me" style="font-weight:400"> / 8</span></td><td class="me">${r.rank >= 0.995 ? '#1' : 'top '+Math.max(1, Math.round((1-r.rank)*100))+'%'}</td><td><span title="G ${r.g} · Q ${r.q} · Y ${r.y} · P ${r.p} · N ${r.n} · V ${r.v} · M ${r.m}${r.s?' · S':''}">${['G','Q','Y','P','N','V','M','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.m,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('')}</span></td><td class="me">${last ? last.d.slice(5)+' ('+daysBetween(last.d, asOf)+'d)' : 'never'}</td><td class="me">${fired(r).slice(0,2).map(x => x.slice(2)).join(' · ')}${fired(r).length>2?' · +'+(fired(r).length-2):''}</td><td class="me">${pct(1 - Math.pow(1 - boxCover([r.b])/10000, drawsWeek))}</td></tr>`; };
   const head = `<tr><th>#</th><th>number</th><th>type</th><th>score</th><th>among its type</th><th>systems</th><th>last here</th><th>what fired (newest first)</th><th>chance this week</th></tr>`;
   el.innerHTML = `<div id="needCheck" class="verdict">Checking the last 30 days&hellip;</div>
-    <div class="note" style="margin:0 0 6px">${label} &middot; ${N}-day pull &middot; ${own.length} draws${w>0&&regKey&&st!=='all'?` &middot; region help ${REGION4[regKey].name} ${w}&times;`:''} &middot; Date Sum ${fmtDate(tomorrow).replace(/, \d{4}$/,'')}: ${root?'root '+dsRoot(L.sum):'sum '+L.sum} &middot; top 12 today: ${Object.keys(kinds).sort((a,b)=>b-a).map(k => kinds[k]+' '+KINDNAME[k]+(kinds[k]>1&&!/s$/.test(KINDNAME[k])?'s':'')).join(', ')}</div>
+    <div class="note" style="margin:0 0 6px">${label} &middot; ${N}-day pull &middot; ${own.length} draws${w>0&&regKey&&st!=='all'?` &middot; region help ${REGION4[regKey].name} ${w}&times;`:''} &middot; ${dsLabel()} &middot; top 12 today: ${Object.keys(kinds).sort((a,b)=>b-a).map(k => kinds[k]+' '+KINDNAME[k]+(kinds[k]>1&&!/s$/.test(KINDNAME[k])?'s':'')).join(', ')}</div>
     <div class="famh">Due here &mdash; strongest for its type first (red = top 6, orange = next 6)</div>
     <div class="tscroll"><table class="tbl">${head}${due.map(row).join('')}</table></div>
     ${more.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Next ${more.length}</summary><div class="tscroll"><table class="tbl">${more.map((r,i) => row(r, i+12)).join('')}</table></div></details>` : ''}
