@@ -393,7 +393,7 @@ function renderMD(){
   const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
   const sysStates = st === 'all' ? Object.keys(SEQ) : [st];
   const L = needList(sysStates, tomorrow, 60, st==='all' ? 0 : 0.5, regKey, withYear, root); const SC = {}; L.all.forEach(r => SC[r.b] = r);
-  const letters = r => r ? ['G','Q','Y','P','N','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('') : '';
+  const letters = r => r ? ['G','Q','Y','P','N','V','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('') : '';
   const drawsWeek = Math.round(win.length / N * 7);
   // board
   const sets = MD_SETS.map((S,i) => { const mem = [S.main, ...S.dbl]; const came = mem.filter(b => cameIn[b]); return {S, i, mem, came, ready: came.length >= 2, n: hits.filter(x => MD_OF[box(x.n)].i === i).length}; });
@@ -704,28 +704,50 @@ function hotBoard(asOf, states, N, withYear, root){
   for(const w in ls.byWays) for(const b of ls.byWays[w]){ if(came.has(b)) continue; add(b, 'S', 'Date Sum '+(root ? 'root '+dsRoot(sum) : 'sum '+sum)); }
   return [...H.values()].sort((a,b) => b.types.size - a.types.size || b.src - a.src || (a.b<b.b?-1:1));
 }
+// HOTTEST: every system at once (the same engine as State Specific, run on the region you pick).
+// G 100 Grand + Relatives, Q Big Quad, Y My Lil Yeah, P Missing Pairs/triads, N neighbors, V Vibrations,
+// M Mirror Doubles, S Date Sum. Each is ranked against numbers of the same type, then the total is ranked
+// within type again, so singles, doubles, double-doubles, triples and quads all compete. For each pick the
+// Straight Finder gives the arrangement that has been out longest.
+const HOTLET = ['G','Q','Y','P','N','V','M','S'];
+const hotLetters = r => HOTLET.filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.m,r.s][k]>0).map(t => `<i class="h${t}">${t}</i>`).join('');
+function hotPicks(states, asOfMorning, N, MIN, withYear, root){
+  return needList(states, asOfMorning, N, 0, null, withYear, root).rows.filter(r => r.sys >= MIN);
+}
 function renderHot(){
   const scope = document.getElementById('hotScope').value, N = +document.getElementById('hotDays').value || 7, TOP = +document.getElementById('hotN').value || 12, MIN = +document.getElementById('hotMin').value || 2;
   const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
   const states = scopeStates(scope, 'all'), label = scopeName(scope, 'all'); const asOf = DATES[DATES.length-1];
-  const ranked = hotBoard(isoAdd(asOf, 1), states, N, withYear, root).filter(e => e.types.size >= MIN);
-  const top = ranked.slice(0, TOP);
+  const top = hotPicks(states, isoAdd(asOf, 1), N, MIN, withYear, root).slice(0, TOP);
+  // straight finder: last time each arrangement came in this region (both draws)
+  const lastStr = {}; for(const c of states) for(const x of (SEQ[c]||[])) if(!lastStr[x.n] || x.d > lastStr[x.n]) lastStr[x.n] = x.d;
+  const longest = b => sfPerms(b).map(p => ({p, d:lastStr[p] || ''})).sort((a,c) => a.d < c.d ? -1 : a.d > c.d ? 1 : (a.p<c.p?-1:1))[0];
+  const KN = {24:'single',12:'double',6:'2 doubles',4:'triple',1:'quad'};
   document.getElementById('hotCount').textContent = `${label} · ${N}-day window · ${fmtDate(asOf)}`;
-  document.getElementById('hotBoard').innerHTML = top.length ? '<div class="heatgrid">' + top.map((e,i) => `<div class="heat ${i<6?'hot':i<12?'warm':''}" onclick="useSeed('${e.rep}')"><div class="hn">${e.rep}</div><div class="ht">${['G','Q','Y','S'].filter(t => e.types.has(t)).map(t => `<i class="h${t}">${t}</i>`).join('')}<span class="me">${e.types.size} sys · ${e.src} src</span></div><div class="hw">${e.why.slice(0,3).join('<br>')}${e.why.length>3?'<br>+'+(e.why.length-3)+' more':''}</div></div>`).join('') + '</div>'
+  document.getElementById('hotBoard').innerHTML = top.length ? '<div class="heatgrid">' + top.map((r,i) => { const L = longest(r.b);
+      return `<div class="heat ${i<6?'hot':i<12?'warm':''}" onclick="useSeed('${L.p}')"><div class="hn">${L.p}</div><div class="ht">${hotLetters(r)}</div><div class="hs">${KN[r.k]} &middot; ${r.str.toFixed(1)}/8 &middot; straight out ${L.d ? daysBetween(L.d, asOf)+'d' : 'all year'}</div></div>`; }).join('') + '</div>'
     : '<div class="soon">Nothing meets that bar right now &mdash; loosen "need at least".</div>';
-  // honesty line: run the same board as of each of the last 30 days, check the top 6 against that day's draws in the region
-  setTimeout(() => {
-    let n=0, hit=0, exp=0, days=0;
-    const idx = DATES.indexOf(asOf);
-    for(let k=Math.max(1, idx-29); k<=idx; k++){
-      const D = DATES[k]; const b = hotBoard(D, states, N, withYear, root).filter(e => e.types.size >= MIN).slice(0,6); if(!b.length) continue;
-      const drawsD = []; for(const c of states) for(const x of ((P4[D]||{})[c]||[])) drawsD.push(x.n);
-      if(!drawsD.length) continue; days++;
-      const bset = new Set(b.map(e => e.b)); const h = drawsD.filter(x => bset.has(box(x))).length;
-      hit += h; n += drawsD.length; exp += drawsD.length * b.reduce((a,e) => a + boxCover([e.rep])/10000, 0);
-    }
-    document.getElementById('hotScore').innerHTML = days ? `<div class="verdict ${hit>exp*1.3&&hit>=5?'good':''}">Scorecard &mdash; the red six, rebuilt as of each of the last ${days} days and checked against that day&rsquo;s draws in ${label}: <b>${hit}</b> boxed hits vs <b>${exp.toFixed(1)}</b> by chance (<b>${exp?(hit/exp).toFixed(2):'—'}&times;</b>). 1.00&times; = the board does what six random numbers would.</div>` : '';
-  }, 30);
+  document.getElementById('hotScore').innerHTML = '<div class="note">Checking the last 30 days&hellip;</div>';
+  setTimeout(() => renderHotScore(states, label, N, MIN, withYear, root, asOf), 30);
+}
+// Scorecard: the red six as it stood each morning of the last 30 days; a green check if it came (boxed)
+// anywhere in the region that day or the next 6. Totals against chance.
+function renderHotScore(states, label, N, MIN, withYear, root, asOf){
+  const el = document.getElementById('hotScore'); if(!el) return;
+  const drawsBy = {}; for(const c of states) for(const x of (SEQ[c]||[])) (drawsBy[x.d] = drawsBy[x.d] || []).push({...x, c});
+  let hit = 0, exp = 0, named = 0; const rows = []; const myRun = (renderHotScore.run = (renderHotScore.run||0) + 1);
+  const days = []; for(let i = 29; i >= 0; i--){ const D = isoAdd(asOf, -i); if((drawsBy[D]||[]).length) days.push(D); }
+  // one day per tick so the page never freezes on a phone
+  const step = () => { if(myRun !== renderHotScore.run) return; const D = days.shift(); if(!D){ finish(); return; }
+    const six = hotPicks(states, D, N, MIN, withYear, root).slice(0, 6);
+    const after = []; let nd = 0; for(let k = 0; k < 7; k++){ const dd = isoAdd(D, k); if(dd > asOf) break; nd++; (drawsBy[dd]||[]).forEach(x => after.push(x)); }
+    const cells = six.map(r => { const h = after.find(x => box(x.n) === r.b); named++; exp += 1 - Math.pow(1 - boxCover([r.b])/10000, after.length); if(h) hit++;
+      return h ? `<span class="chip hit" title="came as ${h.n} in ${nm(h.c)} ${h.d}">&#10003; ${r.b}<span class="mk">${h.d.slice(5)} ${nm(h.c)}</span></span>` : `<span class="chip hotr" style="opacity:.55">${r.b}</span>`; });
+    rows.push(`<tr class="chkrow"><td style="white-space:nowrap">${fmtDate(D).replace(/, \d{4}$/,'')}${nd<7?' <span class="me">(open)</span>':''}</td><td>${cells.join('')}</td></tr>`);
+    el.innerHTML = `<div class="note">Checking the last 30 days&hellip; ${30 - days.length} of 30</div>`; setTimeout(step, 0); };
+  const finish = () => el.innerHTML = `<div class="verdict ${hit > exp*1.3 && hit >= 4 ? 'good' : ''}">Scorecard &mdash; the red six as it stood each morning of the last 30 days, checked against what came in ${label} that day or the next 6: <b>${hit}</b> of ${named} came &mdash; chance would give about <b>${exp.toFixed(1)}</b> (${exp ? (hit/exp).toFixed(2) : '0'}&times;).</div>
+    <details><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Day by day</summary><div class="tscroll"><table class="tbl"><tr><th>morning of</th><th>the red six (&#10003; = came within 7 days)</th></tr>${rows.slice().reverse().join('')}</table></div></details>`;
+  step();
 }
 
 /* ---------- 9. straight finder — same as Almanac Convergence ----------
@@ -888,6 +910,12 @@ function ndTyped(){ const el = document.getElementById('ndNum'); el.value = (el.
 // Each system's count is divided by the average count that system gives numbers of the same TYPE
 // (single / double / double-double / triple / quad), so a triple at 2.0 is as strong for a triple as a
 // single at 2.0 is for a single. Raw counts favour singles because they sit in many more lists.
+
+// every date each pair / triad showed in these states, sorted, cached per state list (Missing Pairs inside needList)
+const CDCACHE = new Map();
+function comboDates(states){ const key = states.slice().sort().join(',') + '|' + DATES.length; if(CDCACHE.has(key)) return CDCACHE.get(key);
+  const out = {}; for(const c of states) for(const x of (SEQ[c]||[])) for(const k of [2,3]) for(const t of cof(k, x.n)) (out[k+t] = out[k+t] || []).push(x.d);
+  for(const k in out){ out[k].sort(); } if(CDCACHE.size > 20) CDCACHE.clear(); CDCACHE.set(key, out); return out; }
 const KINDW = b => boxCover([b]);   // 24 single, 12 double, 6 double-double, 4 triple, 1 quad
 function needList(states, asOf, N, w, regKey, withYear, root){
   const start = isoAdd(asOf, -N); const own = windowDraws(states, start, asOf); const P = pullCounts(own);
@@ -896,7 +924,8 @@ function needList(states, asOf, N, w, regKey, withYear, root){
   const { sum } = dsDateSum(asOf, withYear); const inSum = new Set(); const ls = dsList(sum, root); for(const k in ls.byWays) ls.byWays[k].forEach(b => inSum.add(b));
   const came = new Set(own.map(x => box(x.n)));
   // P = missing pairs / triads: the 5 longest-out pairs and 5 longest-out triads here (by days), counted in each number
-  const lastP = {}; for(const c of states) for(const x of (SEQ[c]||[])){ if(x.d >= asOf) continue; for(const k of [2,3]) for(const t of cof(k, x.n)){ const key = k+t; if(!lastP[key] || x.d > lastP[key]) lastP[key] = x.d; } }
+  const CD = comboDates(states); const lastP = {};
+  for(const key in CD){ const arr = CD[key]; let lo = 0, hi = arr.length; while(lo < hi){ const m = (lo+hi)>>1; if(arr[m] < asOf) lo = m+1; else hi = m; } if(lo) lastP[key] = arr[lo-1]; }
   const longOut = [];
   for(const k of [2,3]){ const keys = comboInfo(k).keys.map(t => [t, lastP[k+t] || '0000']).sort((a,b) => a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : (a[0]<b[0]?-1:1)).slice(0,5); keys.forEach(([t,d]) => longOut.push({k, t, d})); }
   const PP = {}, PW = {};
@@ -904,10 +933,17 @@ function needList(states, asOf, N, w, regKey, withYear, root){
   // N = neighbors: draws here in the last 2 days that are one digit off (+1, -1, mirror) from the number
   const NN = {}, NW = {}; const recent = windowDraws(states, isoAdd(asOf, -2), asOf);
   for(const x of recent) for(const nb of neighborsOf(x.n)){ NN[nb.b] = (NN[nb.b]||0) + 1; (NW[nb.b] = NW[nb.b] || []).push('N '+x.n+' '+nm(x.st)+' '+x.d.slice(5)); }
-  const SYS = ['G','Q','Y','P','N'];
+  // V = vibrations: a draw in the last 2 days vibrates to its mirror (+5 every digit), up (+1) and down (-1)
+  const VV = {}, VW = {}; for(const x of recent){ const v = vibes(x.n); for(const k in v){ const b = box(v[k]); VV[b] = (VV[b]||0) + 1; (VW[b] = VW[b] || []).push('V '+k+' of '+x.n+' '+nm(x.st)+' '+x.d.slice(5)); } }
+  // M = Mirror Doubles: members of the same set that came in the last 14 days (the number itself still open)
+  const MM = {}, MW = {}; const md14 = windowDraws(states, isoAdd(asOf, -14), asOf); const mdCame = {};
+  for(const x of md14){ const k = (typeof MD_OF !== 'undefined') && MD_OF[box(x.n)]; if(k) (mdCame[k.i] = mdCame[k.i] || new Set()).add(box(x.n)); }
+  for(const i in mdCame){ const S = MD_SETS[i]; for(const b of [S.main, ...S.dbl]){ const mates = [...mdCame[i]].filter(o => o !== b).length; if(mates){ MM[b] = mates; (MW[b] = MW[b] || []).push('M '+mates+' of set '+S.name+' came'); } } }
+  const SYS = ['G','Q','Y','P','N','V','M'];
   const rows = ALLBOX.map(b => { const k = KINDW(b); const g = P.G[b]||0, q = P.Q[b]||0, y = P.Y[b]||0, s = inSum.has(b)?1:0, pp = PP[b]||0, nn = NN[b]||0;
     const r = PR ? ((PR.G[b]||0)+(PR.Q[b]||0)+(PR.Y[b]||0))/nOthers : 0;
-    return {b, k, G:g + w*r, Q:q, Y:y, P:pp, N:nn, g, q, y, p:pp, n:nn, s, r, raw: g+q+y + w*r, sys:(g>0)+(q>0)+(y>0)+(s>0)+(pp>0)+(nn>0), fell: came.has(b), extra:[...(PW[b]||[]), ...(NW[b]||[])]}; });
+    const vv = VV[b]||0, mm = MM[b]||0;
+    return {b, k, G:g + w*r, Q:q, Y:y, P:pp, N:nn, V:vv, M:mm, g, q, y, p:pp, n:nn, v:vv, m:mm, s, r, raw: g+q+y + w*r, sys:(g>0)+(q>0)+(y>0)+(s>0)+(pp>0)+(nn>0)+(vv>0)+(mm>0), fell: came.has(b), extra:[...(PW[b]||[]), ...(NW[b]||[]), ...(VW[b]||[]), ...(MW[b]||[])]}; });
   // every system gets an equal vote: where the number ranks for that system among numbers of its own type
   const below = (arr, v) => { let lo = 0, hi = arr.length; while(lo < hi){ const m = (lo+hi)>>1; if(arr[m] < v) lo = m+1; else hi = m; } return lo; };
   for(const X of SYS){ const byK = {}; rows.forEach(r => (byK[r.k] = byK[r.k] || []).push(r[X])); for(const k in byK) byK[k].sort((a,b) => a-b);
@@ -931,17 +967,17 @@ function renderNeed(){
   const drawsWeek = Math.round(own.length/N*7);
   const place = dueAll.length ? '' : '';
   const kinds = {}; due.forEach(r => kinds[r.k] = (kinds[r.k]||0)+1);
-  const fired = r => [...(r.extra||[]).filter(x => x[0]==='N'), ...(P.why[r.b]||[]).slice().reverse(), ...(r.extra||[]).filter(x => x[0]==='P')];
+  const fired = r => [...(r.extra||[]).filter(x => 'NVM'.includes(x[0])), ...(P.why[r.b]||[]).slice().reverse(), ...(r.extra||[]).filter(x => x[0]==='P')];
   const label = st==='all' ? 'all states' : nm(st);
   const row = (r,i) => { const last = lastSeen[r.b];
-    return `<tr><td>${i+1}</td><td>${chip(r.b, i<6?'hotr':i<12?'warmo':'')}</td><td class="me">${KINDNAME[r.k]}</td><td style="font-weight:700">${r.str.toFixed(1)}<span class="me" style="font-weight:400"> / 6</span></td><td class="me">${r.rank >= 0.995 ? '#1' : 'top '+Math.max(1, Math.round((1-r.rank)*100))+'%'}</td><td><span title="G ${r.g} · Q ${r.q} · Y ${r.y} · P ${r.p} · N ${r.n}${r.s?' · S':''}">${['G','Q','Y','P','N','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('')}</span></td><td class="me">${last ? last.d.slice(5)+' ('+daysBetween(last.d, asOf)+'d)' : 'never'}</td><td class="me">${fired(r).slice(0,2).map(x => x.slice(2)).join(' · ')}${fired(r).length>2?' · +'+(fired(r).length-2):''}</td><td class="me">${pct(1 - Math.pow(1 - boxCover([r.b])/10000, drawsWeek))}</td></tr>`; };
+    return `<tr><td>${i+1}</td><td>${chip(r.b, i<6?'hotr':i<12?'warmo':'')}</td><td class="me">${KINDNAME[r.k]}</td><td style="font-weight:700">${r.str.toFixed(1)}<span class="me" style="font-weight:400"> / 8</span></td><td class="me">${r.rank >= 0.995 ? '#1' : 'top '+Math.max(1, Math.round((1-r.rank)*100))+'%'}</td><td><span title="G ${r.g} · Q ${r.q} · Y ${r.y} · P ${r.p} · N ${r.n} · V ${r.v} · M ${r.m}${r.s?' · S':''}">${['G','Q','Y','P','N','V','M','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.m,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('')}</span></td><td class="me">${last ? last.d.slice(5)+' ('+daysBetween(last.d, asOf)+'d)' : 'never'}</td><td class="me">${fired(r).slice(0,2).map(x => x.slice(2)).join(' · ')}${fired(r).length>2?' · +'+(fired(r).length-2):''}</td><td class="me">${pct(1 - Math.pow(1 - boxCover([r.b])/10000, drawsWeek))}</td></tr>`; };
   const head = `<tr><th>#</th><th>number</th><th>type</th><th>score</th><th>among its type</th><th>systems</th><th>last here</th><th>what fired (newest first)</th><th>chance this week</th></tr>`;
   el.innerHTML = `<div id="needCheck" class="verdict">Checking the last 30 days&hellip;</div>
     <div class="note" style="margin:0 0 6px">${label} &middot; ${N}-day pull &middot; ${own.length} draws${w>0&&regKey&&st!=='all'?` &middot; region help ${REGION4[regKey].name} ${w}&times;`:''} &middot; Date Sum ${fmtDate(tomorrow).replace(/, \d{4}$/,'')}: ${root?'root '+dsRoot(L.sum):'sum '+L.sum} &middot; top 12 today: ${Object.keys(kinds).sort((a,b)=>b-a).map(k => kinds[k]+' '+KINDNAME[k]+(kinds[k]>1&&!/s$/.test(KINDNAME[k])?'s':'')).join(', ')}</div>
     <div class="famh">Due here &mdash; strongest for its type first (red = top 6, orange = next 6)</div>
     <div class="tscroll"><table class="tbl">${head}${due.map(row).join('')}</table></div>
     ${more.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Next ${more.length}</summary><div class="tscroll"><table class="tbl">${more.map((r,i) => row(r, i+12)).join('')}</table></div></details>` : ''}
-    <div class="note"><b>Score out of 6, one point per system.</b> <b>G</b> 100 Grand (and its Relatives), <b>Q</b> Big Quad Energy, <b>Y</b> My Lil Yeah, <b>P</b> holds one of the 5 longest-out pairs or triads here, <b>N</b> a neighbor (mirror / &plusmn;1 on one digit) fell here in the last 2 days, <b>S</b> today&rsquo;s Date Sum. For G, Q, Y, P and N the point is where the number ranks against numbers of its <i>own type</i> &mdash; a single sits in about 24 arrangements&rsquo; worth of lists, so raw counts would always bury triples and quads. The score is then ranked within type again (&ldquo;#1&rdquo; = the strongest of its type here), so the best triple and quad sit next to the best single. Hover the letters for the raw G / Q / Y counts. &ldquo;Chance this week&rdquo; is how often that number comes here in a week by luck alone &mdash; a single is about 6&times; a triple and 24&times; a quad.</div>
+    <div class="note"><b>Score out of 8, one point per system.</b> <b>G</b> 100 Grand (and its Relatives), <b>Q</b> Big Quad Energy, <b>Y</b> My Lil Yeah, <b>P</b> holds one of the 5 longest-out pairs or triads here, <b>N</b> a neighbor (mirror / &plusmn;1 on one digit) fell here in the last 2 days, <b>V</b> a Vibration (whole number mirrored, +1 or &minus;1) of a draw here in the last 2 days, <b>M</b> its Mirror Doubles set mates came here in 14 days, <b>S</b> today&rsquo;s Date Sum. For G, Q, Y, P and N the point is where the number ranks against numbers of its <i>own type</i> &mdash; a single sits in about 24 arrangements&rsquo; worth of lists, so raw counts would always bury triples and quads. The score is then ranked within type again (&ldquo;#1&rdquo; = the strongest of its type here), so the best triple and quad sit next to the best single. Hover the letters for the raw G / Q / Y counts. &ldquo;Chance this week&rdquo; is how often that number comes here in a week by luck alone &mdash; a single is about 6&times; a triple and 24&times; a quad.</div>
     <div class="famh" style="margin-top:12px">Did it work? &mdash; the list as it stood each morning, last 30 days</div><div id="needLog" class="note">Computing&hellip;</div>`;
   document.getElementById('needScore').innerHTML = `<button class="ghost" onclick="renderNeedScore()">Compute for ${nm(st)} · ${N}-day pull</button>`;
   renderNeedWhere();

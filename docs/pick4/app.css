@@ -122,7 +122,8 @@ table.dst td{font-size:12px;vertical-align:top}
 .heat .hn{font-family:'Roboto Mono',monospace;font-size:22px;font-weight:700;letter-spacing:.12em;line-height:1.1}
 .heat .ht{display:flex;gap:3px;flex-wrap:wrap;margin:3px 0}
 .heat .ht i{font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff}
-.hG{background:#17306E}.hQ{background:#7A3E9D}.hS{background:#2F6FD6}.hY{background:#1D6B3F}.hP{background:#B8362B}.hN{background:#D9822B}
+.hG{background:#17306E}.hQ{background:#7A3E9D}.hS{background:#2F6FD6}.hY{background:#1D6B3F}.hP{background:#B8362B}.hN{background:#D9822B}.hV{background:#0E7C86}.hM{background:#6B3FA0}
+.heat .hs{font-size:10px;color:var(--ink-soft);margin-top:2px}
 .heat .hw{font-size:11px;color:var(--ink-soft);line-height:1.4}
 
 /* straight finder (Almanac look) */

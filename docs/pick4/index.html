@@ -22,16 +22,16 @@
 
   <div class="card" id="hotCard">
     <h2>Hottest numbers &mdash; most convergence <span class="count" id="hotCount"></span></h2>
-    <div class="note" style="margin:0 0 8px">Ranked by how many of the four systems point at the same boxed number right now: a <b>100 Grand</b> relative still to come from a seed drawn in the window, a <b>Big Quad Energy</b> relative still to come, a <b>My Lil Yeah</b> (Family Tree) relative still to come, and today&rsquo;s <b>Date Sum</b> group. Red is where the most signals stack. Numbers that already came in the window are left off.</div>
+    <div class="note" style="margin:0 0 8px">Every column reads into this board. Eight systems vote: <b>G</b> 100 Grand and its Relatives, <b>Q</b> Big Quad Energy, <b>Y</b> My Lil Yeah, <b>P</b> Missing Pairs / triads (longest out), <b>N</b> neighbors (one digit mirrored or &plusmn;1) that fell in the last 2 days, <b>V</b> Vibrations of the last 2 days&rsquo; draws, <b>M</b> Mirror Doubles set mates that came, <b>S</b> today&rsquo;s Date Sum &mdash; all built from What Every State Drew. Each system ranks a number only against numbers of its own type, so <b>triples, quads and doubles compete with singles</b> instead of being buried by them. The number shown is the <b>Straight Finder</b> pick: the arrangement out longest in the region. Numbers that already came in the window are left off.</div>
     <div class="controls" style="margin-top:0">
       <label>Region <select id="hotScope" onchange="renderHot()"><option value="se" selected>Southeast</option><option value="ne">Northeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option><option value="all">all states</option></select></label>
       <label>Look back <select id="hotDays" onchange="renderHot()"><option>3</option><option selected>7</option><option>14</option></select> days</label>
       <label>Show top <select id="hotN" onchange="renderHot()"><option>6</option><option selected>12</option><option>24</option></select></label>
-      <label>Need at least <select id="hotMin" onchange="renderHot()"><option value="2" selected>2 systems</option><option value="3">3 systems</option><option value="4">all 4 systems</option><option value="1">1 system</option></select></label>
+      <label>Need at least <select id="hotMin" onchange="renderHot()"><option value="1">1 system</option><option value="2" selected>2 systems</option><option value="3">3 systems</option><option value="4">4 systems</option><option value="5">5 systems</option></select></label>
     </div>
     <div id="hotBoard"></div>
     <div id="hotScore" class="note"></div>
-    <div class="legend"><span><b style="color:var(--pen)">&#9632; Red</b> &mdash; top 6 most converged</span><span><b style="color:var(--mark-o)">&#9632; Orange</b> &mdash; next 6</span><span><b>G Q Y S</b> &mdash; which systems point here: <b>G</b> 100 Grand, <b>Q</b> Big Quad Energy, <b>Y</b> My Lil Yeah, <b>S</b> Date Sum</span><span>&ldquo;src&rdquo; = how many separate seeds / sets fired &middot; tap to make it the seed</span></div>
+    <div class="legend"><span><b style="color:var(--pen)">&#9632; Red</b> &mdash; top 6 most converged</span><span><b style="color:var(--mark-o)">&#9632; Orange</b> &mdash; next 6</span><span><b>G Q Y P N V M S</b> &mdash; which systems point here</span><span>score out of 8 &middot; &ldquo;straight out&rdquo; = days since that exact arrangement came in the region &middot; tap to make it the seed</span></div>
   </div>
 
   <div class="tabs">
