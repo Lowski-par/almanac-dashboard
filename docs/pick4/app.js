@@ -732,20 +732,33 @@ function renderHot(){
 }
 // Scorecard: the red six as it stood each morning of the last 30 days; a green check if it came (boxed)
 // anywhere in the region that day or the next 6. Totals against chance.
+// "What hit": every draw in the last 7 days whose box was on that morning's top 12 (or one of the 2 mornings
+// before), newest first, crossed out. One row per draw; 'boards' = how many of those mornings had it listed.
+function whatHit(hits, label){
+  const list = Object.values(hits).sort((a,b) => a.x.d > b.x.d ? -1 : a.x.d < b.x.d ? 1 : (b.x.s==='e'?1:0) - (a.x.s==='e'?1:0) || (nm(a.x.c) < nm(b.x.c) ? -1 : 1));
+  const head = `<div class="famh" style="margin-top:10px">What hit &mdash; the top 12 from each of the last 7 mornings, came that day or within 7 days (${label})</div>`;
+  if(!list.length) return head + '<div class="note">Nothing from the board has come in the last 7 days yet.</div>';
+  return head + `<div class="tscroll"><table class="tbl"><tr><th>came</th><th></th><th>state</th><th>number</th><th>on the board</th></tr>${list.map(h => `<tr><td>${fmtDate(h.x.d).replace(/, \d{4}$/,'')}</td><td class="me">${h.x.s==='m'?'mid':h.x.s==='e'?'eve':''}</td><td class="stname">${nm(h.x.c)}</td><td><span class="chip gone" onclick="useSeed('${h.x.n}')">${h.x.n}<span class="mk">&#10005;</span></span></td><td class="me">${h.morning === h.x.d ? 'that morning' : fmtDate(h.morning).replace(/, \d{4}$/,'') + ' (' + daysBetween(h.morning, h.x.d) + 'd before)'} &middot; <b style="color:${h.rank<=6?'var(--pen)':'#D9822B'}">#${h.rank}</b>${h.boards > 1 ? ' &middot; on '+h.boards+' boards' : ''}</td></tr>`).join('')}</table></div>`;
+}
 function renderHotScore(states, label, N, MIN, withYear, root, asOf){
   const el = document.getElementById('hotScore'); if(!el) return;
   const drawsBy = {}; for(const c of states) for(const x of (SEQ[c]||[])) (drawsBy[x.d] = drawsBy[x.d] || []).push({...x, c});
-  let hit = 0, exp = 0, named = 0; const rows = []; const myRun = (renderHotScore.run = (renderHotScore.run||0) + 1);
+  let hit = 0, exp = 0, named = 0; const rows = []; const hits = {}; const myRun = (renderHotScore.run = (renderHotScore.run||0) + 1);
   const days = []; for(let i = 29; i >= 0; i--){ const D = isoAdd(asOf, -i); if((drawsBy[D]||[]).length) days.push(D); }
   // one day per tick so the page never freezes on a phone
   const step = () => { if(myRun !== renderHotScore.run) return; const D = days.shift(); if(!D){ finish(); return; }
-    const six = hotPicks(states, D, N, MIN, withYear, root).slice(0, 6);
+    const twelve = hotPicks(states, D, N, MIN, withYear, root).slice(0, 12), six = twelve.slice(0, 6);
+    // What hit: the whole top 12 of the last 7 mornings, came that day or the next 6 (same window as the scorecard)
+    if(D >= isoAdd(asOf, -6)){ for(let k = 0; k < 7; k++){ const dd = isoAdd(D, k); if(dd > asOf) break;
+      for(const x of (drawsBy[dd]||[])){ const i = twelve.findIndex(r => r.b === box(x.n)); if(i < 0) continue; const key = x.d + x.c + x.n + (x.s||'');
+        if(!hits[key]) hits[key] = {x, morning: D, rank: i+1, boards: 0}; hits[key].boards++; } } }
     const after = []; let nd = 0; for(let k = 0; k < 7; k++){ const dd = isoAdd(D, k); if(dd > asOf) break; nd++; (drawsBy[dd]||[]).forEach(x => after.push(x)); }
     const cells = six.map(r => { const h = after.find(x => box(x.n) === r.b); named++; exp += 1 - Math.pow(1 - boxCover([r.b])/10000, after.length); if(h) hit++;
       return h ? `<span class="chip hit" title="came as ${h.n} in ${nm(h.c)} ${h.d}">&#10003; ${r.b}<span class="mk">${h.d.slice(5)} ${nm(h.c)}</span></span>` : `<span class="chip hotr" style="opacity:.55">${r.b}</span>`; });
     rows.push(`<tr class="chkrow"><td style="white-space:nowrap">${fmtDate(D).replace(/, \d{4}$/,'')}${nd<7?' <span class="me">(open)</span>':''}</td><td>${cells.join('')}</td></tr>`);
     el.innerHTML = `<div class="note">Checking the last 30 days&hellip; ${30 - days.length} of 30</div>`; setTimeout(step, 0); };
   const finish = () => el.innerHTML = `<div class="verdict ${hit > exp*1.3 && hit >= 4 ? 'good' : ''}">Scorecard &mdash; the red six as it stood each morning of the last 30 days, checked against what came in ${label} that day or the next 6: <b>${hit}</b> of ${named} came &mdash; chance would give about <b>${exp.toFixed(1)}</b> (${exp ? (hit/exp).toFixed(2) : '0'}&times;).</div>
+    ${whatHit(hits, label)}
     <details><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Day by day</summary><div class="tscroll"><table class="tbl"><tr><th>morning of</th><th>the red six (&#10003; = came within 7 days)</th></tr>${rows.slice().reverse().join('')}</table></div></details>`;
   step();
 }
