@@ -144,9 +144,10 @@
       <label>Number <input id="lkNum" maxlength="4" inputmode="numeric" pattern="[0-9]*" placeholder="4 digits" style="width:90px" oninput="lkTyped()"></label>
       <label>State <select id="lkState" onchange="renderLookup()"></select></label>
       <label>Region <select id="lkScope" onchange="renderLookup()"><option value="state" selected>this state</option><option value="ne">Northeast</option><option value="se">Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option><option value="all">all states</option></select></label>
-      <label>Last <select id="lkDays" onchange="renderLookup()"><option selected>7</option><option>14</option><option>30</option><option>60</option></select> days</label>
+      <label>Who triggered it: last <select id="lkDays" onchange="renderLookup()"><option>7</option><option>14</option><option selected>35</option><option>60</option></select> days</label>
     </div>
-    <div id="lkWhere" style="margin-top:10px"></div>
+    <div class="controls" style="margin-top:10px"><label>Where it&rsquo;s due: look back <select id="lkWDays" onchange="renderLookup()"><option selected>7</option><option>14</option><option>30</option><option>60</option></select> days</label></div>
+    <div id="lkWhere" style="margin-top:6px"></div>
     <div id="lookupBody" class="note" style="margin-top:10px"></div>
     <div class="note">Backward look: every draw in the window whose 100 Grand list held this number. The forward look &mdash; what this number points to and what&rsquo;s still to come &mdash; is on the 100 Grand tab with it as the seed.</div>
   </section>

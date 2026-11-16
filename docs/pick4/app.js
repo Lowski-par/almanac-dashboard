@@ -575,7 +575,7 @@ function renderWhereDue(T){
   const el = document.getElementById('lkWhere'); if(!el) return;
   const scope = document.getElementById('lkScope').value, st = document.getElementById('lkState').value;
   const states = scope === 'state' ? Object.keys(SEQ) : scopeStates(scope, st); const label = scope === 'state' ? 'all states' : scopeName(scope, st);
-  const asOf = DATES[DATES.length-1], tomorrow = isoAdd(asOf, 1), W = +document.getElementById('lkDays').value || 7;
+  const asOf = DATES[DATES.length-1], tomorrow = isoAdd(asOf, 1), W = +document.getElementById('lkWDays').value || 7;
   const L = lookupStates(T, tomorrow, W, states); const b = box(T);
   const cnt = {}; Object.values(L.tags).forEach(s => s.forEach(t => cnt[t] = (cnt[t]||0)+1));
   const nB = L.rows.filter(r => LKTIER(r.falls, r.exp)==='blue').length, nR = L.rows.filter(r => LKTIER(r.falls, r.exp)==='red').length, nY = L.rows.filter(r => LKTIER(r.falls, r.exp)==='yel').length;
@@ -589,7 +589,7 @@ function renderWhereDue(T){
   el.innerHTML = `<div class="famh">Where ${T} is due &mdash; its relatives that fell in the last ${W} days, state by state (${label})</div>
     <div class="note" style="margin:0 0 6px">${L.rel} relatives from every rundown: <b>G</b> 100 Grand ${cnt.G||0} &middot; <b>Q</b> Big Quad ${cnt.Q||0} &middot; <b>Y</b> My Lil Yeah ${cnt.Y||0} &middot; <b>M</b> Mirror Doubles ${cnt.M||0} &middot; <b>N</b> neighbors ${cnt.N||0} &middot; <b>V</b> Vibrations ${cnt.V||0} &nbsp;&middot;&nbsp; <b>${nB}</b> blue &middot; <b>${nR}</b> red &middot; <b>${nY}</b> yellow</div>
     ${rowsH ? `<div class="tscroll"><table class="tbl"><tr><th>state</th><th>systems</th><th>relatives that fell (newest first)</th><th>${T} here</th></tr>${rowsH}</table></div>` : '<div class="note">No state has 2+ of its relatives in the last 7 days.</div>'}
-    <div class="note">&ldquo;Usual&rdquo; = how many of its relatives that state would get by luck in that many draws. Blue (super hot) = 2&frac12;&times; its usual or more, red = 1.8&times;, yellow = 1.3&times; (at least 3 for red/blue, 2 for yellow). Hottest first. States with fewer than 2 aren&rsquo;t listed. Change &ldquo;Last&rdquo; for 7, 14, 30 or 60 days.</div>
+    <div class="note">&ldquo;Usual&rdquo; = how many of its relatives that state would get by luck in that many draws. Blue (super hot) = 2&frac12;&times; its usual or more, red = 1.8&times;, yellow = 1.3&times; (at least 3 for red/blue, 2 for yellow). Hottest first. States with fewer than 2 aren&rsquo;t listed. Change &ldquo;look back&rdquo; for 7, 14, 30 or 60 days.</div>
     <div id="lkWhereTest" class="note"><button class="ghost" onclick="whereDueTest('${T}')">Did it work for ${T}? &mdash; check the last 30 days</button></div>`;
 }
 // Replay the last 30 mornings for this number: how each state read, and whether the number came there within 7 days.
@@ -599,7 +599,7 @@ function whereDueTest(T){
   const states = scope === 'state' ? Object.keys(SEQ) : scopeStates(scope, st);
   const asOf = DATES[DATES.length-1]; const by = {}; for(const S of states) for(const x of (SEQ[S]||[])) (by[x.d+'|'+S] = by[x.d+'|'+S] || []).push(x);
   const T0 = {blue:[0,0,0], red:[0,0,0], yel:[0,0,0], '':[0,0,0]}; const cw = boxCover([b])/10000;
-  const W = +document.getElementById('lkDays').value || 7;
+  const W = +document.getElementById('lkWDays').value || 7;
   for(let k = 30; k >= 1; k--){ const D = isoAdd(asOf, -k+1); const L = lookupStates(T, D, W, states);
     for(const r of L.rows){ let nd = 0, hit = false; for(let j = 0; j < 7; j++){ const dd = isoAdd(D, j); if(dd > asOf) break; for(const x of (by[dd+'|'+r.S]||[])){ nd++; if(box(x.n) === b) hit = true; } }
       const a = T0[LKTIER(r.falls, r.exp)]; a[0] += hit; a[1] += 1 - Math.pow(1 - cw, nd); a[2]++; } }
