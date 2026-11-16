@@ -466,7 +466,7 @@ function lookupStates(n, asOf, W, states){
     for(const x of seq){ const k = box(x.n); if(k === b){ self = x; continue; } if(tags[k]){ falls++; const h = hits[k]; if(!h || x.d > h.d) hits[k] = {n:x.n, d:x.d, s:x.s, tags:[...tags[k]], times:(h?h.times:0)+1}; else h.times++; } }
     const ks = Object.keys(hits); const sys = new Set(); ks.forEach(k => hits[k].tags.forEach(t => sys.add(t)));
     rows.push({S, n: ks.length, falls, sys, hits, exp: seq.length * relCover, draws: seq.length, self}); }
-  rows.sort((a,c) => (c.falls/Math.max(c.exp,1)) - (a.falls/Math.max(a.exp,1)) || c.falls - a.falls || (nm(a.S) < nm(c.S) ? -1 : 1));
+  rows.sort((a,c) => c.falls - a.falls || c.sys.size - a.sys.size || (nm(a.S) < nm(c.S) ? -1 : 1));
   return {rows, rel: keys.length, tags};
 }
 
@@ -569,8 +569,9 @@ function scopeStates(scope, st){
   return Object.keys(SEQ);
 }
 function scopeName(scope, st){ return scope==='state' ? (st==='all' ? 'all states' : nm(st)) : REGION4[scope] ? 'the '+REGION4[scope].name : 'all states'; }
-const LKTIER = (n, exp) => { const e = Math.max(exp, 1); return n >= 3 && n >= 2.5*e ? 'blue' : n >= 3 && n >= 1.8*e ? 'red' : n >= 2 && n >= 1.3*e ? 'yel' : ''; };
-const LKSTYLE = {blue:{bg:'rgba(37,99,235,.18)',fg:'#1D4ED8',lab:'SUPER HOT'}, red:{bg:'rgba(192,57,43,.16)',fg:'#B42318',lab:'HOT'}, yel:{bg:'rgba(250,204,21,.30)',fg:'#7A5A00',lab:''}};
+// Marcus's rule: 9+ relatives fell = Super Hot (blue), 5-8 = Hot (red), 1-4 = Warm (yellow)
+const LKTIER = (n) => n >= 9 ? 'blue' : n >= 5 ? 'red' : n >= 1 ? 'yel' : '';
+const LKSTYLE = {blue:{bg:'rgba(37,99,235,.18)',fg:'#1D4ED8',lab:'SUPER HOT'}, red:{bg:'rgba(192,57,43,.16)',fg:'#B42318',lab:'HOT'}, yel:{bg:'rgba(250,204,21,.30)',fg:'#7A5A00',lab:'WARM'}};
 function renderWhereDue(T){
   const el = document.getElementById('lkWhere'); if(!el) return;
   const scope = document.getElementById('lkScope').value, st = document.getElementById('lkState').value;
@@ -580,16 +581,16 @@ function renderWhereDue(T){
   const cnt = {}; Object.values(L.tags).forEach(s => s.forEach(t => cnt[t] = (cnt[t]||0)+1));
   const nB = L.rows.filter(r => LKTIER(r.falls, r.exp)==='blue').length, nR = L.rows.filter(r => LKTIER(r.falls, r.exp)==='red').length, nY = L.rows.filter(r => LKTIER(r.falls, r.exp)==='yel').length;
   const lastHere = S => { const s = SEQ[S]||[]; for(let i = s.length-1; i >= 0; i--) if(box(s[i].n) === b) return s[i]; return null; };
-  const rowsH = L.rows.filter(r => r.falls >= 2).map(r => { const t = LKSTYLE[LKTIER(r.falls, r.exp)]; const ks = Object.keys(r.hits).sort((a,c) => r.hits[a].d < r.hits[c].d ? 1 : -1); const lh = lastHere(r.S);
+  const rowsH = L.rows.filter(r => r.falls >= 1).map(r => { const t = LKSTYLE[LKTIER(r.falls, r.exp)]; const ks = Object.keys(r.hits).sort((a,c) => r.hits[a].d < r.hits[c].d ? 1 : -1); const lh = lastHere(r.S);
     return `<tr${t?` style="background:${t.bg}"`:''}><td style="white-space:nowrap">${t ? `<b style="color:${t.fg}">${nm(r.S)}</b>${t.lab?` <span style="font-family:Oswald,sans-serif;font-size:9px;letter-spacing:.08em;color:#fff;background:${t.fg};padding:1px 4px;border-radius:2px">${t.lab}</span>`:''}` : nm(r.S)}
       <div style="font-size:10px;color:var(--ink-soft)">${r.falls} relative${r.falls>1?'s':''} fell${r.falls>r.n?' ('+r.n+' different)':''} &middot; usual ${r.exp.toFixed(1)} &middot; ${r.draws} draws</div></td>
       <td>${[...r.sys].sort().map(x => `<i class="h${x}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${x}</i>`).join('')}</td>
       <td>${ks.map(k => { const h = r.hits[k]; return `<span class="chip" title="${h.tags.join(', ')}">${h.n}<span class="mk">${h.d.slice(5)}${h.s?h.s.toUpperCase():''} ${h.tags.join('/')}${h.times>1?' &times;'+h.times:''}</span></span>`; }).join('')}</td>
       <td class="me">${r.self ? `<b style="color:var(--pen)">&#10005; came ${r.self.d.slice(5)}</b>` : lh ? 'last '+daysBetween(lh.d, asOf)+'d ago' : 'not this year'}</td></tr>`; }).join('');
   el.innerHTML = `<div class="famh">Where ${T} is due &mdash; its relatives that fell in the last ${W} days, state by state (${label})</div>
-    <div class="note" style="margin:0 0 6px">${L.rel} relatives from every rundown: <b>G</b> 100 Grand ${cnt.G||0} &middot; <b>Q</b> Big Quad ${cnt.Q||0} &middot; <b>Y</b> My Lil Yeah ${cnt.Y||0} &middot; <b>M</b> Mirror Doubles ${cnt.M||0} &middot; <b>N</b> neighbors ${cnt.N||0} &middot; <b>V</b> Vibrations ${cnt.V||0} &nbsp;&middot;&nbsp; <b>${nB}</b> blue &middot; <b>${nR}</b> red &middot; <b>${nY}</b> yellow</div>
+    <div class="note" style="margin:0 0 6px">${L.rel} relatives from every rundown: <b>G</b> 100 Grand ${cnt.G||0} &middot; <b>Q</b> Big Quad ${cnt.Q||0} &middot; <b>Y</b> My Lil Yeah ${cnt.Y||0} &middot; <b>M</b> Mirror Doubles ${cnt.M||0} &middot; <b>N</b> neighbors ${cnt.N||0} &middot; <b>V</b> Vibrations ${cnt.V||0} &nbsp;&middot;&nbsp; <b>${nB}</b> super hot &middot; <b>${nR}</b> hot &middot; <b>${nY}</b> warm</div>
     ${rowsH ? `<div class="tscroll"><table class="tbl"><tr><th>state</th><th>systems</th><th>relatives that fell (newest first)</th><th>${T} here</th></tr>${rowsH}</table></div>` : '<div class="note">No state has 2+ of its relatives in the last 7 days.</div>'}
-    <div class="note">&ldquo;Usual&rdquo; = how many of its relatives that state would get by luck in that many draws. Blue (super hot) = 2&frac12;&times; its usual or more, red = 1.8&times;, yellow = 1.3&times; (at least 3 for red/blue, 2 for yellow). Hottest first. States with fewer than 2 aren&rsquo;t listed. Change &ldquo;look back&rdquo; for 7, 14, 30 or 60 days.</div>
+    <div class="note"><b style="color:#1D4ED8">Super Hot</b> = 9 or more of its relatives fell there &middot; <b style="color:#B42318">Hot</b> = 5&ndash;8 &middot; <b style="color:#7A5A00">Warm</b> = 1&ndash;4. Most relatives first. &ldquo;Usual&rdquo; = how many that state would get by luck in that many draws, for comparison. Change &ldquo;look back&rdquo; for 7, 14, 30 or 60 days.</div>
     <div id="lkWhereTest" class="note"><button class="ghost" onclick="whereDueTest('${T}')">Did it work for ${T}? &mdash; check the last 30 days</button></div>`;
 }
 // Replay the last 30 mornings for this number: how each state read, and whether the number came there within 7 days.
@@ -606,7 +607,7 @@ function whereDueTest(T){
   const came = []; for(const S of states) for(const x of (SEQ[S]||[])) if(box(x.n) === b && x.d >= isoAdd(asOf, -29)) came.push({...x, S});
   came.sort((a,c) => a.d < c.d ? -1 : 1);
   const line = (k, lab) => `<b>${lab}</b>: a state read ${lab.toLowerCase()} ${T0[k][2]} times &mdash; ${T} came in that state within 7 days <b>${T0[k][0]}</b> of those times (chance ${T0[k][1].toFixed(1)})`;
-  out.innerHTML = `Last 30 mornings, as if you typed ${T} each morning:<br>${line('blue','Blue')}<br>${line('red','Red')}<br>${line('yel','Yellow')}<br>${line('','Not lit').replace('read not lit','was not lit')}<br>
+  out.innerHTML = `Last 30 mornings, as if you typed ${T} each morning:<br>${line('blue','Super Hot')}<br>${line('red','Hot')}<br>${line('yel','Warm')}<br>${line('','Not lit').replace('read not lit','was not lit')}<br>
     ${T} actually came: ${came.length ? came.map(x => `${x.n} ${nm(x.S)} ${x.d.slice(5)}`).join(' &middot; ') : 'not in the last 30 days'}. <span class="me">Mornings overlap, so one hit can count on several mornings &mdash; chance is counted the same way.</span>`;
 }
 function renderLookup(){
