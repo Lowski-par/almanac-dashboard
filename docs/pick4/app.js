@@ -438,6 +438,39 @@ function mdYearTest(){
   out.innerHTML = `Since ${fmtDate(DATES[0])}, every state: a set member fell <b>${n.toLocaleString()}</b> times. Another member of the same set came within 7 days <b>${h.toLocaleString()}</b> times (${(100*h/n).toFixed(0)}%) &mdash; chance <b>${Math.round(e).toLocaleString()}</b> (${(100*e/n).toFixed(0)}%), ${(h/e).toFixed(2)}&times;.<br>READY (two members inside 7 days): ${rn.toLocaleString()} times, another came in the next 7 days <b>${rh.toLocaleString()}</b> (${(100*rh/Math.max(rn,1)).toFixed(0)}%) vs chance <b>${Math.round(re).toLocaleString()}</b> (${(100*re/Math.max(rn,1)).toFixed(0)}%), ${(rh/Math.max(re,1)).toFixed(2)}&times;.`;
 }
 
+/* ---------- Lookup a number: where is it due? (mimics the Almanac's Lookup) ----------
+   Every relative of the number from every rundown we have, in both directions:
+   G 100 Grand (its own list, and every number whose list holds it), Q Big Quad Energy (both ways),
+   Y My Lil Yeah (main <-> relative), M Mirror Doubles set mates, N neighbors (one digit +1/-1/mirror),
+   V Vibrations (whole number mirrored, +1, -1). Then, state by state, how many of those relatives fell
+   in the last W days. Like the Almanac: the more relatives landed in a state, the hotter that state. */
+let RELREV = null;
+function qRelOf(b){ const out = new Set(); for(const q of (QSET[b]||[])) for(const r of BQE[q]){ const rb = box(r); if(rb !== b) out.add(rb); } if(new Set(b).size===1) for(const r of (BQE[b]||[])) out.add(box(r)); return out; }
+function relRev(){ if(RELREV) return RELREV; const G = {}, Q = {};
+  for(const x of ALLBOX){ for(const t of glistBox(x)) (G[t] = G[t] || new Set()).add(x); for(const t of qRelOf(x)) (Q[t] = Q[t] || new Set()).add(x); }
+  return (RELREV = {G, Q}); }
+function relativesOf(n){ const b = box(n), R = relRev(), tags = {};
+  const add = (list, t) => { for(const x of (list||[])){ const k = box(x); if(k === b) continue; (tags[k] = tags[k] || new Set()).add(t); } };
+  add(glistBox(b), 'G'); add(R.G[b], 'G'); add(qRelOf(b), 'Q'); add(R.Q[b], 'Q');
+  add(FAMILY_TREE[b], 'Y'); add(FT_PARENTS[b], 'Y');
+  const md = (typeof MD_OF !== 'undefined') && MD_OF[b]; if(md){ const S = MD_SETS[md.i]; add([S.main, ...S.dbl], 'M'); }
+  add(neighborsOf(b).map(x => x.b), 'N'); add(Object.values(vibes(b)), 'V');
+  return tags; }
+// rows per state for number n, window [asOf-W, asOf)
+function lookupStates(n, asOf, W, states){
+  const b = box(n), tags = relativesOf(n), keys = Object.keys(tags);
+  const relCover = keys.reduce((a,k) => a + boxCover([k]), 0) / 10000;
+  const start = isoAdd(asOf, -W); const rows = [];
+  for(const S of states){ const seq = (SEQ[S]||[]).filter(x => x.d >= start && x.d < asOf); if(!seq.length) continue;
+    const hits = {}; let self = null;
+    for(const x of seq){ const k = box(x.n); if(k === b){ self = x; continue; } if(tags[k]){ const h = hits[k]; if(!h || x.d > h.d) hits[k] = {n:x.n, d:x.d, s:x.s, tags:[...tags[k]]}; } }
+    const ks = Object.keys(hits); const sys = new Set(); ks.forEach(k => hits[k].tags.forEach(t => sys.add(t)));
+    const exp = seq.length * relCover;   // relatives you'd see there by chance in this many draws (rough)
+    rows.push({S, n: ks.length, sys, hits, exp, draws: seq.length, self}); }
+  rows.sort((a,c) => c.n - a.n || c.sys.size - a.sys.size || (nm(a.S) < nm(c.S) ? -1 : 1));
+  return {rows, rel: keys.length, tags};
+}
+
 const GCACHE = new Map();
 function groupsFor(seed){
   if(GCACHE.has(seed)) return GCACHE.get(seed);
@@ -537,10 +570,50 @@ function scopeStates(scope, st){
   return Object.keys(SEQ);
 }
 function scopeName(scope, st){ return scope==='state' ? (st==='all' ? 'all states' : nm(st)) : REGION4[scope] ? 'the '+REGION4[scope].name : 'all states'; }
+const LKTIER = n => n >= 6 ? 'blue' : n >= 4 ? 'red' : n >= 3 ? 'yel' : '';
+const LKSTYLE = {blue:{bg:'rgba(37,99,235,.18)',fg:'#1D4ED8',lab:'SUPER HOT'}, red:{bg:'rgba(192,57,43,.16)',fg:'#B42318',lab:'HOT'}, yel:{bg:'rgba(250,204,21,.30)',fg:'#7A5A00',lab:''}};
+function renderWhereDue(T){
+  const el = document.getElementById('lkWhere'); if(!el) return;
+  const scope = document.getElementById('lkScope').value, st = document.getElementById('lkState').value;
+  const states = scope === 'state' ? Object.keys(SEQ) : scopeStates(scope, st); const label = scope === 'state' ? 'all states' : scopeName(scope, st);
+  const asOf = DATES[DATES.length-1], tomorrow = isoAdd(asOf, 1), W = 7;
+  const L = lookupStates(T, tomorrow, W, states); const b = box(T);
+  const cnt = {}; Object.values(L.tags).forEach(s => s.forEach(t => cnt[t] = (cnt[t]||0)+1));
+  const nB = L.rows.filter(r => LKTIER(r.n)==='blue').length, nR = L.rows.filter(r => LKTIER(r.n)==='red').length, nY = L.rows.filter(r => LKTIER(r.n)==='yel').length;
+  const lastHere = S => { const s = SEQ[S]||[]; for(let i = s.length-1; i >= 0; i--) if(box(s[i].n) === b) return s[i]; return null; };
+  const rowsH = L.rows.filter(r => r.n >= 2).map(r => { const t = LKSTYLE[LKTIER(r.n)]; const ks = Object.keys(r.hits).sort((a,c) => r.hits[a].d < r.hits[c].d ? 1 : -1); const lh = lastHere(r.S);
+    return `<tr${t?` style="background:${t.bg}"`:''}><td style="white-space:nowrap">${t ? `<b style="color:${t.fg}">${nm(r.S)}</b>${t.lab?` <span style="font-family:Oswald,sans-serif;font-size:9px;letter-spacing:.08em;color:#fff;background:${t.fg};padding:1px 4px;border-radius:2px">${t.lab}</span>`:''}` : nm(r.S)}
+      <div style="font-size:10px;color:var(--ink-soft)">${r.n} relatives &middot; usual ${r.exp.toFixed(1)}</div></td>
+      <td>${[...r.sys].sort().map(x => `<i class="h${x}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${x}</i>`).join('')}</td>
+      <td>${ks.map(k => { const h = r.hits[k]; return `<span class="chip" title="${h.tags.join(', ')}">${h.n}<span class="mk">${h.d.slice(5)}${h.s?h.s.toUpperCase():''} ${h.tags.join('/')}</span></span>`; }).join('')}</td>
+      <td class="me">${r.self ? `<b style="color:var(--pen)">&#10005; came ${r.self.d.slice(5)}</b>` : lh ? 'last '+daysBetween(lh.d, asOf)+'d ago' : 'not this year'}</td></tr>`; }).join('');
+  el.innerHTML = `<div class="famh">Where ${T} is due &mdash; its relatives that fell in the last ${W} days, state by state (${label})</div>
+    <div class="note" style="margin:0 0 6px">${L.rel} relatives from every rundown: <b>G</b> 100 Grand ${cnt.G||0} &middot; <b>Q</b> Big Quad ${cnt.Q||0} &middot; <b>Y</b> My Lil Yeah ${cnt.Y||0} &middot; <b>M</b> Mirror Doubles ${cnt.M||0} &middot; <b>N</b> neighbors ${cnt.N||0} &middot; <b>V</b> Vibrations ${cnt.V||0} &nbsp;&middot;&nbsp; <b>${nB}</b> blue &middot; <b>${nR}</b> red &middot; <b>${nY}</b> yellow</div>
+    ${rowsH ? `<div class="tscroll"><table class="tbl"><tr><th>state</th><th>systems</th><th>relatives that fell (newest first)</th><th>${T} here</th></tr>${rowsH}</table></div>` : '<div class="note">No state has 2+ of its relatives in the last 7 days.</div>'}
+    <div class="note">Blue (super hot) = 6 or more of its relatives fell there in 7 days, red = 4&ndash;5, yellow = 3 &mdash; a state usually gets about ${(L.rows.reduce((a,r) => a + r.exp, 0) / Math.max(1, L.rows.length)).toFixed(1)}. States with fewer than 2 aren&rsquo;t listed.</div>
+    <div id="lkWhereTest" class="note"><button class="ghost" onclick="whereDueTest('${T}')">Did it work for ${T}? &mdash; check the last 30 days</button></div>`;
+}
+// Replay the last 30 mornings for this number: how each state read, and whether the number came there within 7 days.
+function whereDueTest(T){
+  const out = document.getElementById('lkWhereTest'); if(!out) return; const b = box(T);
+  const scope = document.getElementById('lkScope').value, st = document.getElementById('lkState').value;
+  const states = scope === 'state' ? Object.keys(SEQ) : scopeStates(scope, st);
+  const asOf = DATES[DATES.length-1]; const by = {}; for(const S of states) for(const x of (SEQ[S]||[])) (by[x.d+'|'+S] = by[x.d+'|'+S] || []).push(x);
+  const T0 = {blue:[0,0,0], red:[0,0,0], yel:[0,0,0], '':[0,0,0]}; const cw = boxCover([b])/10000;
+  for(let k = 30; k >= 1; k--){ const D = isoAdd(asOf, -k+1); const L = lookupStates(T, D, 7, states);
+    for(const r of L.rows){ let nd = 0, hit = false; for(let j = 0; j < 7; j++){ const dd = isoAdd(D, j); if(dd > asOf) break; for(const x of (by[dd+'|'+r.S]||[])){ nd++; if(box(x.n) === b) hit = true; } }
+      const a = T0[LKTIER(r.n)]; a[0] += hit; a[1] += 1 - Math.pow(1 - cw, nd); a[2]++; } }
+  const came = []; for(const S of states) for(const x of (SEQ[S]||[])) if(box(x.n) === b && x.d >= isoAdd(asOf, -29)) came.push({...x, S});
+  came.sort((a,c) => a.d < c.d ? -1 : 1);
+  const line = (k, lab) => `<b>${lab}</b>: ${T0[k][2]} state-mornings, ${T} came there within 7 days <b>${T0[k][0]}</b> times (chance ${T0[k][1].toFixed(1)})`;
+  out.innerHTML = `Last 30 mornings, as if you typed ${T} each morning:<br>${line('blue','Blue')}<br>${line('red','Red')}<br>${line('yel','Yellow')}<br>${line('','Not lit')}<br>
+    ${T} actually came: ${came.length ? came.map(x => `${x.n} ${nm(x.S)} ${x.d.slice(5)}`).join(' &middot; ') : 'not in the last 30 days'}. <span class="me">Mornings overlap, so one hit can count on several mornings &mdash; chance is counted the same way.</span>`;
+}
 function renderLookup(){
   const el = document.getElementById('lookupBody'); const inp = document.getElementById('lkNum');
   inp.value = (inp.value.match(/\d/g)||[]).join('').slice(0,4);
-  const T = inp.value; if(!/^\d{4}$/.test(T)){ el.innerHTML = 'Type a 4-digit number.'; return; }
+  const T = inp.value; if(!/^\d{4}$/.test(T)){ el.innerHTML = 'Type a 4-digit number.'; document.getElementById('lkWhere').innerHTML = ''; return; }
+  renderWhereDue(T);
   const scope = document.getElementById('lkScope').value, N = +document.getElementById('lkDays').value || 35, st = document.getElementById('lkState').value;
   const states = scopeStates(scope, st);
   const label = scopeName(scope, st);
