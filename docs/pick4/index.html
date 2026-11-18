@@ -76,7 +76,16 @@
 
   <!-- MISSING PAIRS -->
   <section id="tab-pairs" class="card" hidden>
-    <h2>Missing pairs <span class="count" id="pairsCount"></span></h2>
+    <h2>Missing pairs &mdash; called for today <span class="count">didn&rsquo;t hit yesterday &middot; best numbers to play for each</span></h2>
+    <div class="controls">
+      <label>State <select id="mpState" onchange="renderMissingToday()"></select></label>
+      <label>Look at <select id="mpK" onchange="renderMissingToday()"><option value="3" selected>Triads (123x, 122x)</option><option value="2">Pairs (12xx, 22xx)</option></select></label>
+    </div>
+    <div id="mpBody" class="note" style="margin-top:10px"></div>
+  </section>
+
+  <section id="tab-pairs2" class="card" data-with="pairs" hidden>
+    <h2>Missing pairs &mdash; longest out <span class="count" id="pairsCount"></span></h2>
     <div class="controls">
       <label>State <select id="pairsState" onchange="renderPairs()"></select></label>
       <label>Look at

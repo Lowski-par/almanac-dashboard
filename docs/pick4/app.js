@@ -101,7 +101,7 @@ function chip(n, cls, mk){ return `<span class="chip ${cls||''}" onclick="useSee
 /* ---------- tabs ---------- */
 function showTab(t){
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab===t));
-  document.querySelectorAll('section[id^=tab-]').forEach(s => s.hidden = s.id !== 'tab-'+t);
+  document.querySelectorAll('section[id^=tab-]').forEach(s => s.hidden = !(s.id === 'tab-'+t || s.dataset.with === t));
   try{ localStorage.setItem('p4tab', t); }catch(e){}
 }
 function initControls(){
@@ -110,7 +110,7 @@ function initControls(){
   const todayCT = new Date().toLocaleDateString('en-CA', { timeZone:'America/Chicago' }); const top = todayCT > last ? todayCT : last;
   for(const id of ['drewDate','sumsDate','vibesDate']){ const el = document.getElementById(id); el.min = DATES[0]; el.max = top; if(!el.value) el.value = id === 'sumsDate' ? top : last; else if(id === 'sumsDate' && el.value === last && top > last) el.value = top; }
   const sts = Object.keys(SEQ).sort((a,b) => nm(a).localeCompare(nm(b)));
-  for(const id of ['pairsState','gState','lkState','bqState','mlyState','ndState','mdState']){
+  for(const id of ['pairsState','gState','lkState','bqState','mlyState','ndState','mdState','mpState']){
     const sel = document.getElementById(id);
     if(sel.options.length) continue;
     sel.innerHTML = (id!=='pairsState' ? '<option value="all">All states</option>' : '') + sts.map(c => `<option value="${c}">${nm(c)}</option>`).join('');
@@ -122,7 +122,7 @@ function initControls(){
   }
   if(!document.getElementById('gSeed').value) seedFromState(true);
 }
-function renderAll(){ renderDrew(); renderSums(); renderPairs(); renderVibes(); renderGrand(); renderBQE(); renderHot(); sfFillStates(); renderMLY(); renderNeed(); renderMD(); }
+function renderAll(){ renderDrew(); renderSums(); renderPairs(); renderVibes(); renderGrand(); renderBQE(); renderHot(); sfFillStates(); renderMLY(); renderNeed(); renderMD(); renderMissingToday(); }
 function stepDate(k){ const el = document.getElementById('drewDate'); el.value = isoAdd(el.value, k); renderDrew(); }
 
 /* ---------- 1. what every state drew ---------- */
@@ -468,6 +468,57 @@ function lookupStates(n, asOf, W, states){
     rows.push({S, n: ks.length, falls, sys, hits, exp: seq.length * relCover, draws: seq.length, self}); }
   rows.sort((a,c) => c.falls - a.falls || c.sys.size - a.sys.size || (nm(a.S) < nm(c.S) ? -1 : 1));
   return {rows, rel: keys.length, tags};
+}
+
+/* ---------- Missing pairs — called for today ----------
+   Marcus's rule: a triad (123x, 122x — those three digits in any order, any 4th digit) or a pair
+   (12xx, 22xx) that did not hit yesterday is called for today. Longest-missing first. For each one,
+   the numbers that complete it are scored by every system (G Q Y P N V M S, the Hottest engine) and
+   the best ones shown. Scorecard: how the list called each morning did that day, against chance. */
+const MP_PATS = { 3: [], 2: [] }; (() => { const d = '0123456789'; for(let a=0;a<10;a++) for(let b=a;b<10;b++){ MP_PATS[2].push(d[a]+d[b]); for(let c=b;c<10;c++) MP_PATS[3].push(d[a]+d[b]+d[c]); } })();
+const MP_FILL = {}; // pattern -> boxes containing it
+function mpFill(p){ if(MP_FILL[p]) return MP_FILL[p]; return (MP_FILL[p] = ALLBOX.filter(b => cof(p.length, b).has(p))); }
+const MP_COV = {}; function mpCov(p){ if(MP_COV[p] === undefined) MP_COV[p] = mpFill(p).reduce((a,b) => a + boxCover([b]), 0) / 10000; return MP_COV[p]; }
+function renderMissingToday(){
+  const el = document.getElementById('mpBody'); if(!el || !DATES.length) return;
+  const st = document.getElementById('mpState').value || 'all', k = +document.getElementById('mpK').value || 3;
+  const states = st === 'all' ? Object.keys(SEQ) : [st], label = st === 'all' ? 'all states' : nm(st);
+  const today = todayCT(), asOf = DATES[DATES.length-1];
+  const by = {}; for(const S of states) for(const x of (SEQ[S]||[])) (by[x.d] = by[x.d] || []).push({...x, S});
+  const hitOn = (p, d) => (by[d]||[]).find(x => cof(k, x.n).has(p));
+  // days missed in a row, ending the day before `day` (days with no draws in scope are skipped)
+  const streak = (p, day) => { let s = 0, d = isoAdd(day, -1), guard = 0; while(guard++ < 120){ if(!(by[d]||[]).length){ d = isoAdd(d, -1); continue; } if(hitOn(p, d)) break; s++; d = isoAdd(d, -1); } return s; };
+  const pats = MP_PATS[k];
+  const miss = pats.map(p => ({p, s: streak(p, today)})).filter(x => x.s >= 1).sort((a,b) => b.s - a.s || (a.p < b.p ? -1 : 1));
+  // every system, scored for the scope (state picked or all states), Date Sum = the Date Sums tab's day
+  const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const regKey = Object.keys(REGION4).find(kk => REGION4[kk].states.includes(st));
+  const L = needList(states, today, 14, st === 'all' ? 0 : 0.5, regKey, withYear, root, dsPlayDay()); const SC = {}; L.all.forEach(r => SC[r.b] = r);
+  const lastSeen = {}; for(const S of states) for(const x of (SEQ[S]||[])) lastSeen[box(x.n)] = x;
+  const letters = r => r ? ['G','Q','Y','P','N','V','M','S'].filter((t,i) => [r.g,r.q,r.y,r.p,r.n,r.v,r.m,r.s][i]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:9px;font-weight:700;border-radius:3px;padding:0 3px;color:#fff;margin-right:1px">${t}</i>`).join('') : '';
+  const best = p => mpFill(p).map(b => ({b, r: SC[b], sc: SC[b] ? SC[b].str : 0})).sort((a,c) => c.sc - a.sc || (a.b < c.b ? -1 : 1));
+  const todayDraws = (by[today]||[]).length;
+  const fmtP = p => p + 'x'.repeat(4 - p.length);
+  const rows = miss.slice(0, 20).map((m,i) => { const B = best(m.p).slice(0, 3); const came = hitOn(m.p, today);
+    return `<tr><td class="me">${i+1}</td><td style="font-family:'Roboto Mono',monospace;font-weight:700;font-size:15px">${fmtP(m.p)}</td><td style="font-weight:700">${m.s} day${m.s>1?'s':''}</td>
+      <td class="me">${pct(1 - Math.pow(1 - mpCov(m.p), Math.max(todayDraws, Math.round((by[isoAdd(today,-1)]||[]).length))))}</td>
+      <td>${B.map((x,j) => `<span class="chip ${j===0?'hotr':'warmo'}" onclick="useSeed('${x.b}')" title="score ${x.sc.toFixed(1)}/8${lastSeen[x.b]?' · last '+lastSeen[x.b].n+' '+nm(lastSeen[x.b].S||lastSeen[x.b].st||'')+' '+lastSeen[x.b].d:''}">${x.b}<span class="mk">${x.sc.toFixed(1)}</span></span>${letters(x.r)}`).join(' ')}</td>
+      <td>${came ? `<b style="color:var(--pen)">&#10005; ${came.n} ${nm(came.S)}${came.s?' '+came.s.toUpperCase():''}</b>` : ''}</td></tr>`; }).join('');
+  // best numbers across the whole missing list
+  const pool = {}; miss.forEach(m => best(m.p).slice(0, 3).forEach(x => { if(!pool[x.b] || pool[x.b].sc < x.sc) pool[x.b] = {...x, p: m.p, s: m.s}; }));
+  const top = Object.values(pool).sort((a,c) => c.sc - a.sc || c.s - a.s).slice(0, 12);
+  // scorecard: each of the last 14 mornings, the missing list vs what came that day
+  let H = 0, E = 0, N = 0; const card = [];
+  for(let j = 14; j >= 1; j--){ const D = isoAdd(today, -j); const nd = (by[D]||[]).length; if(!nd) continue;
+    let h = 0, e = 0, n = 0; for(const p of pats){ if(streak(p, D) < 1) continue; n++; if(hitOn(p, D)) h++; e += 1 - Math.pow(1 - mpCov(p), nd); }
+    H += h; E += e; N += n; card.push(`${fmtDate(D).replace(/^\w+, /,'').replace(/, \d{4}$/,'')}: ${h}/${n}`); }
+  el.innerHTML = `<div class="verdict"><b>Called for today (${fmtDate(today)}), ${label}:</b> ${miss.length} of ${pats.length} ${k===3?'triads':'pairs'} didn&rsquo;t hit yesterday. ${todayDraws ? `Today so far: ${miss.filter(m => hitOn(m.p, today)).length} of them came (${todayDraws} draws in).` : 'No draws in yet today.'}</div>
+    ${miss.length ? `<div class="famh">Best numbers for the missing ${k===3?'triads':'pairs'} &mdash; every system plus today&rsquo;s Date Sum (red = top 3)</div>
+    <div class="heatgrid">${top.map((x,i) => `<div class="heat ${i<3?'hot':i<6?'warm':''}" onclick="useSeed('${x.b}')"><div class="hn">${x.b}</div><div class="ht">${hotLetters(x.r||{})}</div><div class="hs">for ${fmtP(x.p)} &middot; out ${x.s}d &middot; ${x.sc.toFixed(1)}/8</div></div>`).join('')}</div>
+    <div class="famh" style="margin-top:12px">The missing list &mdash; longest out first (top 20 of ${miss.length})</div>
+    <div class="tscroll"><table class="tbl"><tr><th>#</th><th>${k===3?'triad':'pair'}</th><th>missing</th><th>chance today</th><th>best 3 numbers to play (score / 8)</th><th>today</th></tr>${rows}</table></div>` : `<div class="note">Every ${k===3?'triad':'pair'} hit yesterday${st==='all'?' &mdash; across all states that is normal for pairs; pick one state to get a list':''}.</div>`}
+    <div class="note" style="margin-top:8px"><b>Scorecard, last 14 days:</b> each morning&rsquo;s missing list, checked against what came that day: <b>${H}</b> of ${N} came &mdash; chance would give about <b>${E.toFixed(0)}</b> (${E ? (H/E).toFixed(2) : '0'}&times;). <span class="me">${card.join(' &middot; ')}</span></div>
+    <div class="note">Numbers are boxed (any order). &ldquo;Best numbers&rdquo; = the numbers that hold the ${k===3?'triad':'pair'}, scored by the same 8 systems as the Hottest board (<b>G</b> 100 Grand/Relatives, <b>Q</b> Big Quad, <b>Y</b> My Lil Yeah, <b>P</b> longest-out pairs, <b>N</b> neighbors, <b>V</b> Vibrations, <b>M</b> Mirror Doubles, <b>S</b> Date Sum &mdash; the Date Sums tab&rsquo;s day and settings). Tap any number to open it on 100 Grand.</div>`;
 }
 
 const GCACHE = new Map();
@@ -1006,7 +1057,7 @@ function comboDates(states){ const key = states.slice().sort().join(',') + '|' +
 // the day Date Sum is played for on the live boards = the day shown on the Date Sums tab (today by default),
 // with the same Add up / Play settings, so the S letter always matches that tab
 function dsPlayDay(){ const v = (document.getElementById('sumsDate')||{}).value; return v || todayCT(); }
-function dsChanged(){ renderSums(); renderHot(); renderNeed(); renderMD(); }
+function dsChanged(){ renderSums(); renderHot(); renderNeed(); renderMD(); renderMissingToday(); }
 function dsLabel(){ const day = dsPlayDay(), withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
   const { sum } = dsDateSum(day, withYear); const [y,m,d] = day.split('-'); return 'Date Sum ' + (+m) + '/' + (+d) + (withYear ? '/' + y : '') + ' ' + (root ? 'root ' + dsRoot(sum) : 'sum ' + sum); }
 const KINDW = b => boxCover([b]);   // 24 single, 12 double, 6 double-double, 4 triple, 1 quad
