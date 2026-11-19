@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -67,7 +68,7 @@
     <div class="controls">
       <label>Day <input type="date" id="sumsDate" onchange="dsChanged()"></label>
       <label>Add up <select id="dsCount" onchange="dsChanged()"><option value="md">month + day</option><option value="year">month + day + year</option></select></label>
-      <label>Play <select id="dsGroup" onchange="dsChanged()"><option value="sum">the sum</option><option value="root">the root (one digit)</option></select></label>
+      <label>Play <select id="dsGroup" onchange="dsChanged()"><option value="sum">the sum</option><option value="root">the root (one digit)</option><option value="pair">date sum pairs</option></select></label>
       <label>Region <select id="dsScope" onchange="renderSums()"><option value="all" selected>all states</option><option value="ne">Northeast</option><option value="se">Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option></select></label>
     </div>
     <div id="sumsBody"></div>
@@ -229,4 +230,6 @@
 </div>
 <script src="tree.js"></script>
 <script src="app.js"></script>
+</body></html>
+
 </body></html>

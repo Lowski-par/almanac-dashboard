@@ -1183,3 +1183,58 @@ function renderNeedScore(){
 try{ const t = localStorage.getItem('p4tab'); if(t) showTab(t); }catch(e){}
 loadFeed(false);
 setInterval(() => loadFeed(false), 30*60*1000);
+
+/* ---------- 2b. date sum pairs (Play -> "date sum pairs", same rule as Almanac Convergence) ----------
+   The calendar day as a pair plus every pair whose two digits add to the day (18th -> 18x 99x; 6th -> 06x 15x 24x 33x).
+   Past the 18th it drops down 10 days to start over and keeps the day's own pair (20th -> 20x 10x 19x 28x 37x 46x 55x);
+   the 19th and 29th drop to the 9th. A draw counts when it holds both digits anywhere.
+   Tested on the year (Oct 17, 2025 - Nov 18, 2026): Pick 4 9,318 vs 9,267 by chance (1.005x). */
+const DSP_DAYS = {};
+function dspPairs(day){
+  if(DSP_DAYS[day]) return DSP_DAYS[day];
+  const bx = s => s.split('').sort().join(''), out = [], add = (p, why) => { if(!out.some(x => x.p === p)) out.push({p, why}); };
+  add(bx(String(day).padStart(2,'0')), 'the date');
+  let t = day; while(t > 18) t -= 10;
+  if(t !== day) add(bx(String(t).padStart(2,'0')), 'drops to the '+t+(t===1?'st':t===2?'nd':t===3?'rd':'th'));
+  for(let a = 0; a < 10; a++) for(let b = a; b < 10; b++) if(a + b === t) add(''+a+b, 'adds to '+t);
+  return (DSP_DAYS[day] = out);
+}
+const dspTarget = day => { let t = day; while(t > 18) t -= 10; return t; };
+function dspHas(n, p){ const r = String(n).split(''); for(const ch of p){ const i = r.indexOf(ch); if(i < 0) return false; r.splice(i,1); } return true; }
+const DSP_SHARE = {};
+function dspShare(ps){ const key = ps.join(','); if(DSP_SHARE[key] === undefined){ let c = 0; for(let i = 0; i < 10000; i++){ const n = String(i).padStart(4,'0'); if(ps.some(p => dspHas(n, p))) c++; } DSP_SHARE[key] = c/10000; } return DSP_SHARE[key]; }
+function dspScore(dates, states){
+  const allow = new Set(states), out = { n:0, hit:0, exp:0, days:[] };
+  dates.forEach(dt => {
+    const ps = dspPairs(+dt.slice(8,10)).map(x => x.p), sh = dspShare(ps), row = { dt, ps, hits:[], n:0, e:0 }, day = P4[dt] || {};
+    for(const c in day){ if(!allow.has(c)) continue; for(const x of day[c]){ row.n++; const m = ps.filter(p => dspHas(x.n, p)); if(m.length) row.hits.push({...x, c, pm:m}); } }
+    row.e = row.n * sh; out.n += row.n; out.hit += row.hits.length; out.exp += row.e; out.days.push(row);
+  });
+  return out;
+}
+function renderSumPairs(){
+  const iso = document.getElementById('sumsDate').value, scope = document.getElementById('dsScope').value;
+  const states = scopeStates(scope === 'all' ? 'all' : scope, 'all'), label = scope === 'all' ? 'all states' : scopeName(scope, 'all');
+  const [y,m,d] = iso.split('-'), day = +d, t = dspTarget(day), P = dspPairs(day);
+  const lab = s => fmtDate(s).replace(/, \d{4}$/, '');
+  let h = '<div class="dshead"><div class="dsdate">'+(+m)+'/'+day+'</div>'+
+    '<div class="dsmath">'+(t === day ? 'the '+day+' &rarr; pairs that add to <b>'+t+'</b>' : 'the '+day+' can&rsquo;t be added by two digits &rarr; drops to <b>'+t+'</b>')+'</div>'+
+    '<div class="dsplay">Playing <b>date sum pairs</b> &middot; '+label+'</div></div>';
+  h += '<div class="dsrow" style="margin:6px 0 10px">'+P.map(x => '<span class="chip" style="font-size:15px;font-weight:700" title="'+x.why+'">'+x.p+'xx<span class="ago">'+x.why+'</span></span>').join('')+'</div>';
+  const today = dspScore([iso], states).days[0];
+  const hitChip = x => '<span class="chip dshit" onclick="useSeed(\''+x.n+'\')" title="holds '+x.pm.join(', ')+'">'+x.n+'<span class="ago">'+nm(x.c)+' '+(x.s==='m'?'mid':'eve')+' &middot; '+x.pm.join(' ')+'</span></span>';
+  h += '<div class="famh" style="margin-top:8px">Came on '+lab(iso)+'</div>';
+  if(!today.n) h += '<div class="note" style="margin:0">No Pick 4 draws logged for '+lab(iso)+' yet &mdash; the first midday draws land around noon Central; evenings are in by about 11:30 PM.</div>';
+  else h += '<div class="dsrow"><b>Pick 4</b> '+today.hits.length+' of '+today.n+' draws <span class="dsx">(chance '+today.e.toFixed(1)+')</span> '+today.hits.map(hitChip).join('')+'</div>'+
+    '<div class="dsrow" style="color:var(--ink-soft)">By pair: '+P.map(x => '<b>'+x.p+'xx</b> '+today.hits.filter(z => z.pm.includes(x.p)).length).join(' &nbsp;|&nbsp; ')+'</div>';
+  const upTo = DATES.filter(x => x <= iso), week = dspScore(upTo.slice(-7), states);
+  h += '<div class="famh" style="margin-top:10px">Last 7 days</div><div class="tscroll"><table class="tbl dst"><tr><th>Date</th><th>Pairs</th><th>Pick 4</th><th>What came</th></tr>'+
+    week.days.slice().reverse().map(r => '<tr><td>'+lab(r.dt)+'</td><td>'+r.ps.map(p => p+'xx').join(' ')+'</td><td>'+r.hits.length+' <span class="dsx">/ '+r.e.toFixed(1)+'</span></td><td class="dscame">'+r.hits.map(x => x.n+' <span>'+nm(x.c)+'</span>').join(' &middot; ')+'</td></tr>').join('')+'</table></div>';
+  const Y = dspScore(upTo.slice(-365), states), wk = o => o.hit+' vs '+o.exp.toFixed(1)+' by chance ('+(o.exp ? (o.hit/o.exp).toFixed(2) : '&mdash;')+'&times;)';
+  h += '<div class="dssum"><div><div class="l">Last 7 days</div><div class="v">P4 '+wk(week)+'</div></div><div><div class="l">Last '+Y.days.length+' days</div><div class="v">P4 '+wk(Y)+'</div></div></div>';
+  h += '<details class="dslist"><summary><b>Date sum pairs for every date</b></summary><div class="tscroll"><table class="tbl dst">'+
+    Array.from({length:31}, (_, i) => i+1).map(dd => '<tr'+(dd===day?' style="font-weight:700"':'')+'><td>'+dd+'</td><td>'+dspPairs(dd).map(x => x.p+'xx').join(' ')+'</td><td class="dsx">'+(dspTarget(dd) !== dd ? 'drops to the '+dspTarget(dd) : '')+'</td></tr>').join('')+'</table></div></details>';
+  document.getElementById('sumsBody').innerHTML = h;
+  document.getElementById('sumsNote').innerHTML = 'Same date sum pairs as Almanac Convergence. A pair counts when a draw holds both digits anywhere (18xx = a 1 and an 8 in any spot). <b>Chance</b> is how many draws would hold one of the pairs anyway. Tested on the year: 9,318 vs 9,267 by chance (1.005&times;); Nov 18 ran 16 vs 12.0. Watch the year line, not the day. The Add up setting does not change the pairs. Tap a number to make it the 100 Grand seed.';
+}
+{ const _rs = renderSums; renderSums = function(){ return (document.getElementById('dsGroup').value === 'pair') ? renderSumPairs() : _rs.apply(this, arguments); }; }

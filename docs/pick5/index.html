@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Pick 5 Endeavor</title>
+<title>Pick 5 To Da Moon 🌙</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -130,10 +130,10 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
 
 <header class="launch"><div class="launch-in">
   <div>
-    <h1>Pick 5 <b>Endeavor</b></h1>
+    <h1>Pick 5 <b>To Da Moon</b> <span aria-hidden="true">🌙</span></h1>
     <p>Every state's Pick 5 draws, the Endeavor rundowns worked automatically from each new draw, a Pick 5 straight finder, pairs out and a number lookup. Results fill in on their own through the day.</p>
   </div>
-  <img src="rocket.webp" alt="Pick 5 Endeavor rocket" width="547" height="296">
+  <img src="rocket-4.webp" alt="Pick 5 To Da Moon rocket" width="547" height="296">
 </div></header>
 
 <div class="wrap">
@@ -221,8 +221,23 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
   </div>
 </details>
 
-<details class="panel" open id="pConv"><summary><h2>Method convergence</h2><span class="sub">boxes that several rundowns point at today</span></summary>
+<details class="panel" open id="pConv"><summary><h2>Hot list</h2><span class="sub">numbers that two or more systems on this page agree on today</span></summary>
   <div class="pbody"><div id="convOut"></div></div>
+</details>
+
+<details class="panel" open id="pBF"><summary><h2>Brings &amp; follows</h2><span class="sub">your pairings, each graded on every draw on file</span></summary>
+  <div class="pbody">
+    <div id="bfOut"><div class="empty">Loading draws&hellip;</div></div>
+    <div class="sub-h">Try a rule</div>
+    <div class="ctl">
+      <label>Trigger <input id="bfTrig" maxlength="5" inputmode="numeric" placeholder="5231" style="width:80px"></label>
+      <label>Brings <input id="bfFol" placeholder="4444 4449 4499 4999 9999" style="width:260px"></label>
+      <label>Name <input id="bfName" placeholder="Rule #2" style="width:110px"></label>
+      <button class="btn" type="button" id="bfAdd">Grade it</button>
+      <span id="bfMsg" style="color:var(--bad);font-size:13px" aria-live="polite"></span>
+    </div>
+    <div class="note">Four digits mean any fifth digit (5231 covers 52310 through 52319, any order); five digits mean that box. "Came" counts the first follower in the window after the trigger drew; "chance" is how often the same followers show up in that many draws with no trigger at all. A rule beats chance when it is two standard errors ahead in any cell. Rules you grade here stay in this browser; send me the ones that hold up and I will add them for the whole team.</div>
+  </div>
 </details>
 
 <details class="panel" open id="pTrig"><summary><h2>Pick 4 → Pick 5 triggers</h2><span class="sub">every Pick 4 triple in any state, and whether that triple showed up in a Pick 5 within 7 days</span></summary>
@@ -320,5 +335,7 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
 </div>
 <script src="app-1.js?v=live1"></script>
 <script src="triple-1.js"></script>
+<script src="bf-1.js"></script>
+
 
 </body></html>

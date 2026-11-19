@@ -139,11 +139,7 @@ table.dst td{font-size:12px;vertical-align:top}
     <label>Draw date <input type="date" id="drawDate" style="width:auto"></label>
     <label title="Show the whole board as it stood going into this day, marked with what came that day">View board for <input type="date" id="viewDay" style="width:auto" onchange="viewDayChanged()"></label>
     <button class="ghost" id="viewClear" onclick="clearView()" style="display:none">Back to live</button>
-    <label>Shortlist
-      <select id="topN" onchange="render()">
-        <option>3</option><option selected>5</option><option>8</option><option>12</option>
-      </select>
-    </label>
+    <select id="topN" style="display:none"><option>3</option><option selected>5</option><option>8</option><option>12</option></select>
     <span class="bklbl">Books
       <span class="bkbox">
         <label><input type="checkbox" id="bk16" checked onchange="booksChanged()"> &rsquo;16</label>
@@ -267,7 +263,7 @@ table.dst td{font-size:12px;vertical-align:top}
     <div class="controls" style="margin-top:0;margin-bottom:10px">
       <label>Day <input type="date" id="dsDay" style="width:auto" onchange="renderDateSum()"></label>
       <label>Add up <select id="dsCount" onchange="renderDateSum()"><option value="md">month + day</option><option value="year">month + day + year</option></select></label>
-      <label>Play <select id="dsGroup" onchange="renderDateSum()"><option value="sum">the sum</option><option value="root">the root (one digit)</option></select></label>
+      <label>Play <select id="dsGroup" onchange="renderDateSum()"><option value="sum">the sum</option><option value="root">the root (one digit)</option><option value="pair">date sum pairs</option></select></label>
     </div>
     <div id="dsOut"><div class="empty">Add a day to begin.</div></div>
   </div>
@@ -308,7 +304,7 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
     <div class="controls" style="margin-top:0;margin-bottom:10px">
       <label>Pair <input id="psPair" inputmode="numeric" maxlength="2" placeholder="22" style="width:64px" oninput="renderPairSets()"></label>
       <label>Count draws in <select id="psScope" onchange="renderPairSets()"><option value="">Any state</option></select></label>
-      <label>Hot = came in last <select id="psHot" onchange="renderPairSets()"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select></label>
+      <label>Window &mdash; came / pointed at in last <select id="psHot" onchange="renderPairSets()"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select></label>
       <span style="font-size:12px;color:var(--ink-soft)">45 &rarr; 045 145 245 345 445 455 456 457 458 459. The one longest out is flagged; each set shows where it is hot and which states need it.</span>
     </div>
     <div id="psOut"><div class="empty">Type a two-digit pair, like 22 or 45.</div></div>
@@ -369,21 +365,7 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
   <div class="baseline" id="confBase"></div>
 </div>
 
-<div class="grid2">
-  <div class="card">
-    <h2>Shortlist</h2>
-    <div class="panelbody" id="playNext"><div class="empty">Add a day to begin.</div></div>
-  </div>
-  <div class="card">
-    <h2>One relative landed <span class="count" id="partCount"></span></h2>
-    <div class="panelbody" id="partial"><div class="empty">Add a day to begin.</div></div>
-  </div>
-</div>
 
-<div class="card">
-  <h2>Relatives on the way <span class="count" id="watchCount"></span></h2>
-  <div class="panelbody" id="watchList"><div class="empty">Add a day to begin.</div></div>
-  <div class="baseline" id="watchBase"></div>
 </div>
 
 <div class="card">
@@ -432,5 +414,5 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
 
 </div>
 
-<script src="app-24.js"></script>
+<script src="app-26.js"></script>
 </body></html>
