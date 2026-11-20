@@ -5,8 +5,10 @@ name: Update lottery results
 # 5:45 PM (middays), 8:30 PM and 12:15 AM (evenings). During daylight time each runs an hour later.
 # GitHub may start a scheduled run a few minutes late; the next run picks up anything missed.
 on:
-  schedule:
-    - cron: '23 * * * *'   # hourly; re-saved Nov 14 2026 so GitHub picks the schedule back up after the suspension
+  # Schedule OFF since Nov 20 2026: LotteryCorner answers GitHub's computers with "402 Payment Required",
+  # so this collector can no longer read US draws. docs/feed.json and docs/pick5/feed.json are now copied
+  # here from the claude.ai pages by Claude's scheduled task "Copy feeds to the GitHub team links".
+  # The collector can still be run by hand (Actions > Update lottery results > Run workflow).
   workflow_dispatch: {}
 
 permissions:
