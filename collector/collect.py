@@ -11,7 +11,7 @@ Safety rules:
     draws as what is already stored, so a half-posted day can't erase data;
   * nothing older than the pages show is ever touched.
 """
-import argparse, datetime, json, os, re, sys, time, urllib.request
+import argparse, datetime, json, os, re, signal, sys, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FEED = os.path.join(ROOT, 'docs', 'feed.json')
@@ -84,14 +84,41 @@ ROW = re.compile(r'<time dateTime="(\d{4}-\d\d-\d\d)"[^>]*>.*?</time>(.*?)</li><
 BALL = re.compile(r'data-ball="([a-z-]+)" aria-label="([^"]+)"')
 
 
-def fetch(url, tries=3):
+# Hard limits so one slow website can't stall the whole run (Nov 20 2026: runs hung past GitHub's
+# 20-minute limit and were cancelled before saving anything). urlopen's timeout only covers each
+# socket read, so a site that trickles data could hang forever; SIGALRM caps the whole fetch.
+FETCH_LIMIT = 45          # seconds for one page, all of it
+RUN_BUDGET = 11 * 60      # stop starting new pages after this; save what was read
+START = time.time()
+
+
+class _Slow(Exception):
+    pass
+
+
+def _alarm(signum, frame):
+    raise _Slow('page took longer than %ds' % FETCH_LIMIT)
+
+
+def fetch(url, tries=2):
+    if time.time() - START > RUN_BUDGET:
+        raise _Slow('run budget used up, skipped')
     for i in range(tries):
+        t0 = time.time()
+        old = signal.signal(signal.SIGALRM, _alarm)
+        signal.alarm(FETCH_LIMIT)
         try:
-            return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=40).read().decode('utf8', 'replace')
+            body = urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20).read().decode('utf8', 'replace')
+            print(f'  ok   {time.time()-t0:5.1f}s {url}', flush=True)
+            return body
         except Exception as e:
-            if i == tries - 1:
+            print(f'  FAIL {time.time()-t0:5.1f}s {url} ({e})', flush=True)
+            if i == tries - 1 or time.time() - START > RUN_BUDGET:
                 raise
-            time.sleep(3 * (i + 1))
+            time.sleep(3)
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old)
 
 
 def first_prize(balls, digits, caribbean):

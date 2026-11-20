@@ -25,11 +25,13 @@ jobs:
 
       - name: Collect Pick 3 and Pick 4 (Almanac Convergence)
         continue-on-error: true
-        run: python3 collector/collect.py
+        timeout-minutes: 14
+        run: python3 -u collector/collect.py
 
       - name: Collect Pick 5 (Pick 5 Endeavor)
         continue-on-error: true
-        run: python3 collector/collect_pick5.py
+        timeout-minutes: 4
+        run: python3 -u collector/collect_pick5.py
 
       - name: Save the new results
         run: |
