@@ -1209,13 +1209,19 @@ function dspPairs(day){
   return (DSP_DAYS[day] = out);
 }
 const dspTarget = day => { let t = day; while(t > 18) t -= 10; return t; };
+/* Last digit sum pairs (Marcus, Nov 25): the date's last digit, its mirror (+5) and the two together -> 11/24: 44xx 49xx 99xx.
+   They also like to come the day before or the day after their own date. */
+const dspMode = () => ((document.getElementById('dsGroup')||{}).value === 'last') ? 'last' : 'pair';
+function dspLast(iso){ const d = +iso.slice(-1), m = (d+5)%10, out = [], add = (p, why) => { if(!out.some(x => x.p === p)) out.push({p, why}); };
+  add(''+d+d, 'last digit '+d); add([d,m].sort().join(''), d+' + mirror '+m); add(''+m+m, 'mirror '+m); return out; }
+function dspList(iso){ return dspMode() === 'last' ? dspLast(iso) : dspPairs(+iso.slice(8,10)); }
 function dspHas(n, p){ const r = String(n).split(''); for(const ch of p){ const i = r.indexOf(ch); if(i < 0) return false; r.splice(i,1); } return true; }
 const DSP_SHARE = {};
 function dspShare(ps){ const key = ps.join(','); if(DSP_SHARE[key] === undefined){ let c = 0; for(let i = 0; i < 10000; i++){ const n = String(i).padStart(4,'0'); if(ps.some(p => dspHas(n, p))) c++; } DSP_SHARE[key] = c/10000; } return DSP_SHARE[key]; }
 function dspScore(dates, states){
   const allow = new Set(states), out = { n:0, hit:0, exp:0, days:[] };
   dates.forEach(dt => {
-    const ps = dspPairs(+dt.slice(8,10)).map(x => x.p), sh = dspShare(ps), row = { dt, ps, hits:[], n:0, e:0 }, day = P4[dt] || {};
+    const ps = dspList(dt).map(x => x.p), sh = dspShare(ps), row = { dt, ps, hits:[], n:0, e:0 }, day = P4[dt] || {};
     for(const c in day){ if(!allow.has(c)) continue; for(const x of day[c]){ row.n++; const m = ps.filter(p => dspHas(x.n, p)); if(m.length) row.hits.push({...x, c, pm:m}); } }
     row.e = row.n * sh; out.n += row.n; out.hit += row.hits.length; out.exp += row.e; out.days.push(row);
   });
@@ -1224,29 +1230,31 @@ function dspScore(dates, states){
 function renderSumPairs(){
   const iso = document.getElementById('sumsDate').value, scope = document.getElementById('dsScope').value;
   const states = scopeStates(scope === 'all' ? 'all' : scope, 'all'), label = scope === 'all' ? 'all states' : scopeName(scope, 'all');
-  const [y,m,d] = iso.split('-'), day = +d, t = dspTarget(day), P = dspPairs(day);
+  const [y,m,d] = iso.split('-'), day = +d, t = dspTarget(day), last = dspMode() === 'last', P = dspList(iso);
   const lab = s => fmtDate(s).replace(/, \d{4}$/, '');
   let h = '<div class="dshead"><div class="dsdate">'+(+m)+'/'+day+'</div>'+
-    '<div class="dsmath">'+(t === day ? 'the '+day+' &rarr; pairs that add to <b>'+t+'</b>' : 'the '+day+' can&rsquo;t be added by two digits &rarr; drops to <b>'+t+'</b>')+'</div>'+
-    '<div class="dsplay">Playing <b>date sum pairs</b> &middot; '+label+'</div></div>';
+    '<div class="dsmath">'+(last ? 'last digit <b>'+(day%10)+'</b> &rarr; mirror <b>'+((day+5)%10)+'</b>' : t === day ? 'the '+day+' &rarr; pairs that add to <b>'+t+'</b>' : 'the '+day+' can&rsquo;t be added by two digits &rarr; drops to <b>'+t+'</b>')+'</div>'+
+    '<div class="dsplay">Playing <b>'+(last ? 'last digit sum pairs' : 'date sum pairs')+'</b> &middot; '+label+'</div></div>';
   h += '<div class="dsrow" style="margin:6px 0 10px">'+P.map(x => '<span class="chip" style="font-size:15px;font-weight:700" title="'+x.why+'">'+x.p+'xx<span class="ago">'+x.why+'</span></span>').join('')+'</div>';
   const today = dspScore([iso], states).days[0];
   const hitChip = x => '<span class="chip dshit" onclick="useSeed(\''+x.n+'\')" title="holds '+x.pm.join(', ')+'">'+x.n+'<span class="ago">'+nm(x.c)+' '+(x.s==='m'?'mid':'eve')+' &middot; '+x.pm.join(' ')+'</span></span>';
   h += '<div class="famh" style="margin-top:8px">Came on '+lab(iso)+'</div>';
   if(!today.n) h += '<div class="note" style="margin:0">No Pick 4 draws logged for '+lab(iso)+' yet &mdash; the first midday draws land around noon Central; evenings are in by about 11:30 PM.</div>';
   else h += '<div class="dsrow"><b>Pick 4</b> '+today.hits.length+' of '+today.n+' draws <span class="dsx">(chance '+today.e.toFixed(1)+')</span> '+today.hits.map(hitChip).join('')+'</div>'+
-    '<div class="dsrow" style="color:var(--ink-soft)">By pair: '+P.map(x => '<b>'+x.p+'xx</b> '+today.hits.filter(z => z.pm.includes(x.p)).length).join(' &nbsp;|&nbsp; ')+'</div>';
+    '<div class="dsrow" style="color:var(--ink-soft)">By pair: '+P.map(x => '<b>'+x.p+'xx</b> '+today.hits.filter(z => z.pm.includes(x.p)).length).join(' &nbsp;|&nbsp; ')+'</div>'+(last ? dspNear4(iso, states) : '');
   const upTo = DATES.filter(x => x <= iso), week = dspScore(upTo.slice(-7), states);
   h += '<div class="famh" style="margin-top:10px">Last 7 days</div><div class="tscroll"><table class="tbl dst"><tr><th>Date</th><th>Pairs</th><th>Pick 4</th><th>What came</th></tr>'+
     week.days.slice().reverse().map(r => '<tr><td>'+lab(r.dt)+'</td><td>'+r.ps.map(p => p+'xx').join(' ')+'</td><td>'+r.hits.length+' <span class="dsx">/ '+r.e.toFixed(1)+'</span></td><td class="dscame">'+r.hits.map(x => x.n+' <span>'+nm(x.c)+'</span>').join(' &middot; ')+'</td></tr>').join('')+'</table></div>';
   const Y = dspScore(upTo.slice(-365), states), wk = o => o.hit+' vs '+o.exp.toFixed(1)+' by chance ('+(o.exp ? (o.hit/o.exp).toFixed(2) : '&mdash;')+'&times;)';
   h += '<div class="dssum"><div><div class="l">Last 7 days</div><div class="v">P4 '+wk(week)+'</div></div><div><div class="l">Last '+Y.days.length+' days</div><div class="v">P4 '+wk(Y)+'</div></div></div>';
-  h += '<details class="dslist"><summary><b>Date sum pairs for every date</b></summary><div class="tscroll"><table class="tbl dst">'+
+  if(last) h += '<details class="dslist"><summary><b>Last digit sum pairs for every last digit</b></summary><div class="tscroll"><table class="tbl dst">'+
+    [0,1,2,3,4,5,6,7,8,9].map(k => '<tr'+(k===day%10?' style="font-weight:700"':'')+'><td>ends in '+k+'</td><td>'+dspLast('2026-01-0'+k).map(x => x.p+'xx').join(' ')+'</td></tr>').join('')+'</table></div></details>';
+  else h += '<details class="dslist"><summary><b>Date sum pairs for every date</b></summary><div class="tscroll"><table class="tbl dst">'+
     Array.from({length:31}, (_, i) => i+1).map(dd => '<tr'+(dd===day?' style="font-weight:700"':'')+'><td>'+dd+'</td><td>'+dspPairs(dd).map(x => x.p+'xx').join(' ')+'</td><td class="dsx">'+(dspTarget(dd) !== dd ? 'drops to the '+dspTarget(dd) : '')+'</td></tr>').join('')+'</table></div></details>';
   document.getElementById('sumsBody').innerHTML = h;
-  document.getElementById('sumsNote').innerHTML = 'Same date sum pairs as Almanac Convergence. A pair counts when a draw holds both digits anywhere (18xx = a 1 and an 8 in any spot). <b>Chance</b> is how many draws would hold one of the pairs anyway. Tested on the year: 9,318 vs 9,267 by chance (1.005&times;); Nov 18 ran 16 vs 12.0. Watch the year line, not the day. The Add up setting does not change the pairs. Tap a number to make it the 100 Grand seed.';
+  document.getElementById('sumsNote').innerHTML = last ? 'Last digit sum pairs: the date&rsquo;s last digit and its mirror (+5) &mdash; the 24th &rarr; 44xx 49xx 99xx, the 25th &rarr; 55xx 05xx 00xx. A pair counts when a draw holds both digits anywhere. <b>Day before / day after</b> counts yesterday&rsquo;s and tomorrow&rsquo;s pairs in today&rsquo;s draws. Checked before it went in, all states: last 2 weeks (Nov 11&ndash;24) own date 232 vs 201 by chance (1.15&times;), yesterday&rsquo;s pairs 0.95&times;, tomorrow&rsquo;s 1.05&times;; Nov 24 ran 20 vs 13.0. Whole year: own date 1.01&times;, day before 1.01&times;, day after 1.00&times;. The hottest list for these pairs, top 12 every morning of the year: 310 vs 320.5 by chance (0.97&times;); Southeast 1.13&times;, Northeast 1.00&times;. Watch the year line, not the day. Tap a number to make it the 100 Grand seed.' : 'Same date sum pairs as Almanac Convergence. A pair counts when a draw holds both digits anywhere (18xx = a 1 and an 8 in any spot). <b>Chance</b> is how many draws would hold one of the pairs anyway. Tested on the year: 9,318 vs 9,267 by chance (1.005&times;); Nov 18 ran 16 vs 12.0. Watch the year line, not the day. The Add up setting does not change the pairs. Tap a number to make it the 100 Grand seed.';
 }
-{ const _rs = renderSums; renderSums = function(){ return (document.getElementById('dsGroup').value === 'pair') ? renderSumPairs() : _rs.apply(this, arguments); }; }
+{ const _rs = renderSums; renderSums = function(){ const v = document.getElementById('dsGroup').value; return (v === 'pair' || v === 'last') ? renderSumPairs() : _rs.apply(this, arguments); }; }
 
 /* ---------- 2c. date sum pairs: hottest numbers for the day's pairs ----------
    Every Pick 4 box holding one of the day's pairs, ranked by the Hottest board's engine (all eight systems:
@@ -1254,13 +1262,31 @@ function renderSumPairs(){
    mornings, each list graded on its own day and on the 14 days from it.
    Tested every morning Oct 2025 - Nov 2026, top 12: all states same day 411 vs 411.8 (1.00x), within 14 days
    2,856 vs 2,854.5 (1.00x); Northeast same day 1.09x, Southeast 0.95x (14 days 1.05x), Central 1.05x, West 0.95x. */
-function dspHot4(iso, states){
-  const ps = dspPairs(+iso.slice(8,10)).map(x => x.p), N = +((document.getElementById('hotDays')||{}).value) || 7;
-  return hotPicks(states, iso, N, 1, false, false, iso).filter(r => ps.some(p => dspHas(r.b, p))).slice(0, 12).map(r => Object.assign({ pm: ps.filter(p => dspHas(r.b, p)) }, r));
+let DSP4_RANK = (function(){ try{ return localStorage.getItem('dsp4Rank') || 'hits'; }catch(e){ return 'hits'; } })();
+function dsp4SetRank(v){ DSP4_RANK = v; try{ localStorage.setItem('dsp4Rank', v); }catch(e){} DSP4.key = null; renderSums(); }
+let DSP4_SHOW = (function(){ try{ return +localStorage.getItem('dsp4Show') || 12; }catch(e){ return 12; } })();
+function dsp4SetShow(v){ DSP4_SHOW = +v; try{ localStorage.setItem('dsp4Show', v); }catch(e){} renderSums(); }
+function dspHot4(iso, states, n){ n = n || 12;
+  const ps = dspList(iso).map(x => x.p), N = +((document.getElementById('hotDays')||{}).value) || 7;
+  /* every system votes (Nov 25): the 8 Hottest systems, plus D when the box also holds the other pair sum
+     (date sum pairs while playing last digit pairs, and the reverse) */
+  const other = (dspMode() === 'last' ? dspPairs(+iso.slice(8,10)) : dspLast(iso)).map(x => x.p);
+  if(n >= 200) n = 99999;
+  if(DSP4_RANK === 'hits'){   /* most hits: every box holding the pairs, all-different first (24 ways > 12 > 6 > 4 > 1), then by votes */
+    return needList(states, iso, N, 0, null, false, false, iso).all.filter(r => ps.some(p => dspHas(r.b, p)))
+      .map(r => Object.assign({ pm: ps.filter(p => dspHas(r.b, p)), d: other.some(p => dspHas(r.b, p)) ? 1 : 0 }, r))
+      .sort((a,b) => b.k - a.k || (b.str + b.d) - (a.str + a.d) || (a.b < b.b ? -1 : 1)).slice(0, n);
+  }
+  /* "Show all" (Marcus, Nov 25): truly every box holding the pairs, even with no system behind it,
+     so a hit like 1525 / 7787 is always on the list. */
+  if(n >= 200) n = 99999;
+  return (n === 99999 ? needList(states, iso, N, 0, null, false, false, iso).all : hotPicks(states, iso, N, 1, false, false, iso)).filter(r => ps.some(p => dspHas(r.b, p)))
+    .map(r => Object.assign({ pm: ps.filter(p => dspHas(r.b, p)), d: other.some(p => dspHas(r.b, p)) ? 1 : 0 }, r))
+    .sort((a,b) => (b.str + b.d) - (a.str + a.d) || b.sys - a.sys || (a.b < b.b ? -1 : 1)).slice(0, n);
 }
 let DSP4 = { key:null, rows:[], done:false, run:0 };
 function dspScore4(iso, states, scope){
-  const key = DATES.length + '|' + (DATES[DATES.length-1]||'') + '|' + scope + '|' + iso + '|' + ((document.getElementById('hotDays')||{}).value||7);
+  const key = DATES.length + '|' + (DATES[DATES.length-1]||'') + '|' + scope + '|' + iso + '|' + ((document.getElementById('hotDays')||{}).value||7) + '|' + dspMode() + '|' + DSP4_RANK;
   if(DSP4.key === key) return DSP4;
   const run = ++DSP4.run; DSP4 = { key, rows:[], done:false, run };
   const by = {}; for(const c of states) for(const x of (SEQ[c]||[])) (by[x.d] = by[x.d] || []).push({ b: box(x.n), c, n: x.n });
@@ -1286,17 +1312,29 @@ function dspScore4HTML(){
 }
 function dspHot4HTML(iso){
   const scope = document.getElementById('dsScope').value, states = scopeStates(scope === 'all' ? 'all' : scope, 'all');
-  const top = dspHot4(iso, states), came = {};
+  const top = dspHot4(iso, states, DSP4_SHOW), came = {};
   for(const c of states) for(const x of (SEQ[c]||[])) if(x.d === iso) (came[box(x.n)] = came[box(x.n)] || []).push(x.n+' '+nm(c));
   const KN = {24:'single',12:'double',6:'2 doubles',4:'triple',1:'quad'}, hasDay = Object.keys(came).length || (P4[iso] && Object.keys(P4[iso]).length);
-  let h = '<div class="famh" style="margin-top:10px">Hottest numbers for these pairs <span class="me">all eight systems (G Q Y P N V M S), built from the draws before '+fmtDate(iso).replace(/, \d{4}$/, '')+', '+((document.getElementById('hotDays')||{}).value||7)+'-day window</span></div>';
+  let h = '<div class="famh" style="margin-top:10px">Hottest numbers for these pairs <span class="me">all eight systems (G Q Y P N V M S), built from the draws before '+fmtDate(iso).replace(/, \d{4}$/, '')+', '+((document.getElementById('hotDays')||{}).value||7)+'-day window</span></div>'+
+    '<div class="controls" style="margin:0 0 6px"><label>Rank by <select onchange="dsp4SetRank(this.value)"><option value="hits"'+(DSP4_RANK==='hits'?' selected':'')+'>most hits &mdash; all-different numbers first</option><option value="signals"'+(DSP4_RANK==='signals'?' selected':'')+'>most signals</option></select></label>'+
+    '<label>Show <select onchange="dsp4SetShow(this.value)">'+[12,20,30,200].map(v => '<option value="'+v+'"'+(DSP4_SHOW===v?' selected':'')+'>'+(v===200?'all':v)+'</option>').join('')+'</select></label>'+
+    '<span class="me">'+(DSP4_RANK==='hits' ? 'Over the year, picks on this list came 16% of days (vs 11.5% ranked by signals) &mdash; all-different numbers have 24 ways to come but pay less as a box.' : 'Ranked by how many systems point at it; doubles, triples and quads come less often.')+'</span></div>';
   h += top.length ? '<div class="heatgrid">'+top.map((r, i) => { const c = came[r.b];
-      return '<div class="heat '+(i<6?'hot':'warm')+'" onclick="useSeed(\''+r.b+'\')" style="'+(c?'opacity:.6;text-decoration:line-through':'')+'"><div class="hn">'+r.b+'</div><div class="ht">'+hotLetters(r)+'</div><div class="hs">'+KN[r.k]+' &middot; '+r.str.toFixed(1)+'/8 &middot; '+r.pm.map(p => p+'xx').join(' ')+(c ? ' &middot; came '+c.slice(0,2).join(', ') : hasDay ? ' &middot; not yet' : '')+'</div></div>'; }).join('')+'</div>'
+      return (i === 12 ? '</div><div class="famh" style="margin-top:8px">Next in line <span class="me">past the top 12 &mdash; not graded on the scorecard</span></div><div class="heatgrid">' : '')+'<div class="heat '+(i<6?'hot':i<12?'warm':'')+'" onclick="useSeed(\''+r.b+'\')" style="'+(c?'opacity:.6;text-decoration:line-through':'')+'"><div class="hn">'+r.b+'</div><div class="ht">'+hotLetters(r)+(r.d?'<i style="background:#0E7C86;color:#fff;font-style:normal;padding:0 3px;border-radius:2px">D</i>':'')+'</div><div class="hs">'+KN[r.k]+' &middot; '+r.str.toFixed(1)+'/8 &middot; '+r.pm.map(p => p+'xx').join(' ')+(c ? ' &middot; came '+c.slice(0,2).join(', ') : hasDay ? ' &middot; not yet' : '')+'</div></div>'; }).join('')+'</div>'
     : '<div class="note">No number holding these pairs has a system behind it in this region.</div>';
   const S = dspScore4(iso, states, scope);
   h += '<div class="famh" style="margin-top:10px">How this list has done</div><div id="dsp4Score">'+(S.done ? dspScore4HTML() : '<div class="note">Checking the last 28 mornings&hellip;</div>')+'</div>';
-  h += '<div class="note" style="margin-top:4px">Every box holding one of the day&rsquo;s pairs, ranked by the Hottest board&rsquo;s engine with all eight systems; crossed out = came that day. The scorecard rebuilds each of the last 28 mornings&rsquo; lists and grades them two ways: came that same day, and came within the 14 days from that morning. Tested every morning of the year, top 12: all states 411 same-day vs 411.8 by chance (1.00&times;), 2,856 within 14 days vs 2,854.5 (1.00&times;); by region same day Northeast 1.09&times;, Central 1.05&times;, Southeast 0.95&times;, West 0.95&times; &mdash; inside chance. A shortlist inside the pairs, not an edge.</div>';
+  h += '<div class="note" style="margin-top:4px">Every box holding one of the day&rsquo;s pairs, ranked by the Hottest board&rsquo;s engine with all eight systems, plus <b>D</b> when it also holds the other pair sum (date sum pairs and last digit pairs vote for each other); crossed out = came that day. The scorecard rebuilds each of the last 28 mornings&rsquo; lists and grades them two ways: came that same day, and came within the 14 days from that morning. With every system voting (Nov 25), every morning of the year, top 12 &mdash; last digit pairs: all states 404 vs 394.8 (1.02&times;), Northeast 1.08&times;, Southeast 1.13&times;; date sum pairs: all states 460 vs 455.0 (1.01&times;), Northeast 1.07&times;, Southeast 1.04&times;. Before the extra vote, tested every morning of the year, top 12: all states 411 same-day vs 411.8 by chance (1.00&times;), 2,856 within 14 days vs 2,854.5 (1.00&times;); by region same day Northeast 1.09&times;, Central 1.05&times;, Southeast 0.95&times;, West 0.95&times; &mdash; inside chance. A shortlist inside the pairs, not an edge.</div>';
   return h;
 }
 { const _rsp = renderSumPairs; renderSumPairs = function(){ _rsp.apply(this, arguments); const body = document.getElementById('sumsBody'); if(!body) return;
     try{ const anchor = [...body.querySelectorAll('.famh')][0]; const div = document.createElement('div'); div.innerHTML = dspHot4HTML(document.getElementById('sumsDate').value); if(anchor) anchor.before(...div.childNodes); else body.append(...div.childNodes); }catch(e){ console.error(e); } }; }
+
+/* ---------- 2d. last digit sum pairs: the day before / day after check ---------- */
+function dspNear4(iso, states){
+  const allow = new Set(states), day = P4[iso] || {}, draws = []; for(const c in day){ if(allow.has(c)) day[c].forEach(x => draws.push(x)); }
+  const row = (lab, src) => { const ps = dspLast(src).map(x => x.p), h = draws.filter(x => ps.some(p => dspHas(x.n, p)));
+    return '<div class="dsrow"><span style="min-width:190px">'+lab+' <b>'+ps.map(p => p+'xx').join(' ')+'</b></span> '+h.length+' <span class="dsx">/ '+(draws.length*dspShare(ps)).toFixed(1)+'</span> <span class="dscame">'+h.slice(0,12).map(x => x.n).join(' ')+(h.length>12?' &hellip;':'')+'</span></div>'; };
+  return '<div class="dsrow" style="color:var(--ink-soft);margin-top:6px">Day before / day after &mdash; the neighbors&rsquo; pairs in today&rsquo;s draws (came / chance):</div>'+
+    row('Yesterday&rsquo;s ('+(+isoAdd(iso,-1).slice(5,7))+'/'+(+isoAdd(iso,-1).slice(8))+')', isoAdd(iso,-1)) + row('Tomorrow&rsquo;s ('+(+isoAdd(iso,1).slice(5,7))+'/'+(+isoAdd(iso,1).slice(8))+')', isoAdd(iso,1));
+}
