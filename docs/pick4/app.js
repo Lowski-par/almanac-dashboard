@@ -23,15 +23,13 @@ const nm = c => STATE_NAMES[c] || c.toUpperCase();
 var P4 = {}, P3 = {}, DATES = [], SEQ = {}, FEED_AT = null;
 const FEED_LIVE = 'https://lowski-par.github.io/almanac-dashboard/feed.json';
 async function fetchFeed(){
-  // read every copy we can reach and merge them: the live collector feed (newest draws) plus the
-  // feed published next to this page (full history incl. backfill). Duplicates are dropped in ingest.
-  const out = []; let ok = 0;
-  for(const u of [FEED_LIVE, 'feed.json']){
-    try{ const r = await fetch(u + '?t=' + Date.now(), {cache:'no-store'}); if(!r.ok) continue;
-      const j = await r.json(); const d = Array.isArray(j) ? j : (j.docs || []); if(d.length){ ok++; out.push(...d); } }catch(e){}
-  }
-  if(!ok) throw new Error('no feed');
-  return out;
+  // ONE source only: the feed.json published next to this page. The claude.ai page and the GitHub copy
+  // get the very same file (Claude's publish task / copy task), so every team member sees the same draws.
+  // (Until Nov 25 2026 this also merged the GitHub collector feed; an old copy there brought back draws
+  // that had been removed, so the two links disagreed.)
+  const r = await fetch('feed.json?t=' + Date.now(), {cache:'no-store'}); if(!r.ok) throw new Error('no feed');
+  const j = await r.json(); const d = Array.isArray(j) ? j : (j.docs || []); if(!d.length) throw new Error('no feed');
+  return d;
 }
 function ingest(docs){
   P4 = {}; P3 = {};
