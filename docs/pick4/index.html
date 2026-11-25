@@ -67,7 +67,7 @@
     <h2>Date Sum <span class="count">the date&rsquo;s digits added &rarr; that sum&rsquo;s numbers</span></h2>
     <div class="controls">
       <label>Day <input type="date" id="sumsDate" onchange="dsChanged()"></label>
-      <label>Add up <select id="dsCount" onchange="dsChanged()"><option value="md">month + day</option><option value="year">month + day + year</option></select></label>
+      <label>Add up <select id="dsCount" onchange="dsChanged()"><option value="both" selected>both (month + day, and + year)</option><option value="md">month + day</option><option value="year">month + day + year</option></select></label>
       <label>Play <select id="dsGroup" onchange="dsChanged()"><option value="sum">the sum</option><option value="root">the root (one digit)</option><option value="pair">date sum pairs</option></select></label>
       <label>Region <select id="dsScope" onchange="renderSums()"><option value="all" selected>all states</option><option value="ne">Northeast</option><option value="se">Southeast</option><option value="ce">Central</option><option value="we">West</option><option value="ca">Canada</option><option value="cb">Caribbean</option></select></label>
     </div>

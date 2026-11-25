@@ -150,6 +150,10 @@ function renderDrew(){
 const dsDig = n => String(n).split('').reduce((a,d) => a + (+d), 0);
 const dsRoot = x => { while(x > 9) x = dsDig(x); return x; };
 function dsDateSum(iso, withYear){ const [y,m,d] = iso.split('-'); const digits = (m + d + (withYear ? y : '')).split(''); return { digits, sum: digits.reduce((a,x) => a + (+x), 0) }; }
+function dsYearMode(){ const v = (document.getElementById('dsCount')||{}).value; return v === 'both' ? 'both' : v === 'year'; }
+// boxed numbers that hold the date sum. withYear may be 'both': then a number counts if it matches EITHER
+// the month+day sum or the month+day+year sum (Marcus, Nov 25 2026: 1468 = 19 = 11/25/2026)
+function dsSet(day, withYear, root){ const out = new Set(); for(const y of (withYear === 'both' ? [false, true] : [!!withYear])){ const { sum } = dsDateSum(day, y); const ls = dsList(sum, root); for(const k in ls.byWays) ls.byWays[k].forEach(b => out.add(b)); } return out; }
 function dsIn(n, sum, root){ const s = dsDig(n); return root ? (s > 0 && dsRoot(s) === dsRoot(sum)) || (s === 0 && sum === 0) : s === sum; }
 const DS_LISTS = {};
 function dsList(sum, root){
@@ -172,7 +176,14 @@ function dsScore(dates, withYear, root, states){
   return out;
 }
 function renderSums(){
-  const day = document.getElementById('sumsDate').value, withYear = document.getElementById('dsCount').value === 'year', root = document.getElementById('dsGroup').value === 'root';
+  if(dsYearMode() === 'both'){ const a = renderSumsOne(false), b = renderSumsOne(true);
+    document.getElementById('sumsBody').innerHTML = '<div class="verdict">Both count: a number gets the Date Sum point if it matches <b>either</b> group below.</div>' + a + '<hr style="margin:16px 0;border:0;border-top:2px solid var(--ink)">' + b;
+    document.getElementById('sumsNote').innerHTML = 'Same setup as Almanac Convergence. &ldquo;Both&rdquo; shows the month + day group and the month + day + year group; the Hottest board, State Specific, Mirror Doubles and Missing Pairs give the S point to a number in either one. Root keeps adding until one digit is left.'; return; }
+  const h = renderSumsOne(dsYearMode()); document.getElementById('sumsBody').innerHTML = h.html; document.getElementById('sumsNote').innerHTML = h.note;
+}
+function withBoth(){ return dsYearMode() === 'both'; }
+function renderSumsOne(withYear){
+  const day = document.getElementById('sumsDate').value, root = document.getElementById('dsGroup').value === 'root';
   const scope = document.getElementById('dsScope').value; const states = scopeStates(scope === 'all' ? 'all' : scope, 'all'); const label = scope === 'all' ? 'all states' : scopeName(scope, 'all');
   const { digits, sum } = dsDateSum(day, withYear), r = dsRoot(sum); const [y,m,d] = day.split('-');
   const lab = iso => fmtDate(iso).replace(/, \d{4}$/, '');
@@ -194,8 +205,8 @@ function renderSums(){
   const Y = dsScore(upTo.slice(-365), withYear, root, states);
   const wk = o => o.hit+' vs '+o.exp.toFixed(1)+' by chance ('+(o.exp ? (o.hit/o.exp).toFixed(2) : '&mdash;')+'&times;)';
   h += '<div class="dssum"><div><div class="l">Last 7 days</div><div class="v">P4 '+wk(week)+'</div></div><div><div class="l">Last '+Y.days.length+' days</div><div class="v">P4 '+wk(Y)+'</div></div></div>';
-  document.getElementById('sumsBody').innerHTML = h;
-  document.getElementById('sumsNote').innerHTML = 'Same setup as Almanac Convergence: the date&rsquo;s month and day digits are added'+(withYear ? ' together with the year' : '')+'; root keeps adding until one digit is left. <b>Chance</b> is how many draws land in the group anyway, given how many numbers it holds and how many draws there were. A week above chance is common &mdash; watch the long line, not the week. Tap a number to make it the 100 Grand seed.';
+  const note = 'Same setup as Almanac Convergence: the date&rsquo;s month and day digits are added'+(withYear ? ' together with the year' : '')+'; root keeps adding until one digit is left. <b>Chance</b> is how many draws land in the group anyway, given how many numbers it holds and how many draws there were. A week above chance is common &mdash; watch the long line, not the week. Tap a number to make it the 100 Grand seed.';
+  return withBoth() ? h : {html: h, note};
 }
 
 /* ---------- 3. missing pairs / triads ---------- */
@@ -349,7 +360,7 @@ function renderNeighbors(seed, st, mode){
     return {...x, last, fell, days: last ? daysBetween(last.d, today) : null}; });
   rows.sort((a,b) => (b.days===null?9999:b.days) - (a.days===null?9999:a.days));
   // hot board for this scope, same settings as the Hottest card
-  const N = +((document.getElementById('hotDays')||{}).value) || 7; const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const N = +((document.getElementById('hotDays')||{}).value) || 7; const withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root';
   const H = new Map(); for(const e of hotBoard(isoAdd(DATES[DATES.length-1], 1), states, N, withYear, root)) H.set(e.b, e);
   const letters = e => e ? ['G','Q','Y','S'].filter(t => e.types.has(t)).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('') : '<span class="me">&mdash;</span>';
   let draws2 = 0; for(const c of states) for(const d of (SEQ[c]||[])) if(d.d >= cut2) draws2++;
@@ -388,7 +399,7 @@ function renderMD(){
   const cameIn = {}; hits.forEach(x => (cameIn[box(x.n)] = cameIn[box(x.n)] || []).push(x));
   const setCover = (24 + 4*6) / 10000, expSet = win.length * setCover;
   // all-systems score for the 50 numbers (state picked, or all states)
-  const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root';
   const sysStates = st === 'all' ? Object.keys(SEQ) : [st];
   const L = needList(sysStates, tomorrow, 60, st==='all' ? 0 : 0.5, regKey, withYear, root, dsPlayDay()); const SC = {}; L.all.forEach(r => SC[r.b] = r);
   const letters = r => r ? ['G','Q','Y','P','N','V','S'].filter((t,k) => [r.g,r.q,r.y,r.p,r.n,r.v,r.s][k]>0).map(t => `<i class="h${t}" style="font-style:normal;font-family:'Roboto Mono',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;margin-right:2px">${t}</i>`).join('') : '';
@@ -489,7 +500,7 @@ function renderMissingToday(){
   const pats = MP_PATS[k];
   const miss = pats.map(p => ({p, s: streak(p, today)})).filter(x => x.s >= 1).sort((a,b) => b.s - a.s || (a.p < b.p ? -1 : 1));
   // every system, scored for the scope (state picked or all states), Date Sum = the Date Sums tab's day
-  const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root';
   const regKey = Object.keys(REGION4).find(kk => REGION4[kk].states.includes(st));
   const L = needList(states, today, 14, st === 'all' ? 0 : 0.5, regKey, withYear, root, dsPlayDay()); const SC = {}; L.all.forEach(r => SC[r.b] = r);
   const lastSeen = {}; for(const S of states) for(const x of (SEQ[S]||[])) lastSeen[box(x.n)] = x;
@@ -823,8 +834,7 @@ function hotBoard(asOf, states, N, withYear, root){
   // My Lil Yeah: relatives still to come of mains drawn in the window
   for(const s of seeds){ const rel = FAMILY_TREE[box(s.n)]; if(!rel) continue; for(const r of rel){ if(came.has(r)) continue; add(r, 'Y', 'Family Tree from '+s.n+' ('+nm(s.st)+' '+s.d.slice(5)+')'); } }
   // Date Sum: today's group
-  const { sum } = dsDateSum(asOf, withYear); const ls = dsList(sum, root);
-  for(const w in ls.byWays) for(const b of ls.byWays[w]){ if(came.has(b)) continue; add(b, 'S', 'Date Sum '+(root ? 'root '+dsRoot(sum) : 'sum '+sum)); }
+  for(const b of dsSet(asOf, withYear, root)){ if(came.has(b)) continue; add(b, 'S', 'Date Sum'); }
   return [...H.values()].sort((a,b) => b.types.size - a.types.size || b.src - a.src || (a.b<b.b?-1:1));
 }
 // HOTTEST: every system at once (the same engine as State Specific, run on the region you pick).
@@ -839,7 +849,7 @@ function hotPicks(states, asOfMorning, N, MIN, withYear, root, dsDay){
 }
 function renderHot(){
   const scope = document.getElementById('hotScope').value, N = +document.getElementById('hotDays').value || 7, TOP = +document.getElementById('hotN').value || 12, MIN = +document.getElementById('hotMin').value || 2;
-  const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root';
   const states = scopeStates(scope, 'all'), label = scopeName(scope, 'all'); const asOf = DATES[DATES.length-1];
   const top = hotPicks(states, isoAdd(asOf, 1), N, MIN, withYear, root, dsPlayDay()).slice(0, TOP);
   // straight finder: last time each arrangement came in this region (both draws)
@@ -1056,14 +1066,15 @@ function comboDates(states){ const key = states.slice().sort().join(',') + '|' +
 // with the same Add up / Play settings, so the S letter always matches that tab
 function dsPlayDay(){ const v = (document.getElementById('sumsDate')||{}).value; return v || todayCT(); }
 function dsChanged(){ renderSums(); renderHot(); renderNeed(); renderMD(); renderMissingToday(); }
-function dsLabel(){ const day = dsPlayDay(), withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
-  const { sum } = dsDateSum(day, withYear); const [y,m,d] = day.split('-'); return 'Date Sum ' + (+m) + '/' + (+d) + (withYear ? '/' + y : '') + ' ' + (root ? 'root ' + dsRoot(sum) : 'sum ' + sum); }
+function dsLabel(){ const day = dsPlayDay(), withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root'; const [y,m,d] = day.split('-');
+  const one = wy => { const { sum } = dsDateSum(day, wy); return (+m) + '/' + (+d) + (wy ? '/' + y : '') + ' ' + (root ? 'root ' + dsRoot(sum) : 'sum ' + sum); };
+  return 'Date Sum ' + (withYear === 'both' ? one(false) + ' + ' + one(true) : one(!!withYear)); }
 const KINDW = b => boxCover([b]);   // 24 single, 12 double, 6 double-double, 4 triple, 1 quad
 function needList(states, asOf, N, w, regKey, withYear, root, dsDay){
   const start = isoAdd(asOf, -N); const own = windowDraws(states, start, asOf); const P = pullCounts(own);
   let PR = null, nOthers = 1;
   if(w > 0 && regKey && states.length === 1){ const others = REGION4[regKey].states.filter(c => c!==states[0] && SEQ[c]); nOthers = Math.max(1, others.length); PR = pullCounts(windowDraws(others, start, asOf)); }
-  const { sum } = dsDateSum(dsDay || asOf, withYear); const inSum = new Set(); const ls = dsList(sum, root); for(const k in ls.byWays) ls.byWays[k].forEach(b => inSum.add(b));
+  const sum = dsDateSum(dsDay || asOf, withYear === 'both' ? false : withYear).sum; const inSum = dsSet(dsDay || asOf, withYear, root);
   const came = new Set(own.map(x => box(x.n)));
   // P = missing pairs / triads: the 5 longest-out pairs and 5 longest-out triads here (by days), counted in each number
   const CD = comboDates(states); const lastP = {};
@@ -1102,7 +1113,7 @@ function renderNeed(){
   const st = document.getElementById('ndState').value, N = +document.getElementById('ndDays').value || 60, w = +document.getElementById('ndRegion').value || 0, TOP = +document.getElementById('ndN').value || 20;
   const states = st==='all' ? Object.keys(SEQ) : [st]; const asOf = DATES[DATES.length-1]; const tomorrow = isoAdd(asOf, 1);
   const regKey = Object.keys(REGION4).find(k => REGION4[k].states.includes(st));
-  const withYear = (document.getElementById('dsCount')||{}).value === 'year', root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root';
   const L = needList(states, tomorrow, N, w, regKey, withYear, root, dsPlayDay()); const P = L.P, own = L.own;
   const lastSeen = {}; for(const c of states) for(const x of (SEQ[c]||[])) lastSeen[box(x.n)] = x;
   const dueAll = L.rows; const due = dueAll.slice(0, 12), more = dueAll.slice(12, Math.max(TOP, 12));
