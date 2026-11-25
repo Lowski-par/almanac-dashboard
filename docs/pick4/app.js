@@ -1282,7 +1282,7 @@ function dspHot4(iso, states, n){ n = n || 12;
   if(n >= 200) n = 99999;
   return (n === 99999 ? needList(states, iso, N, 0, null, false, false, iso).all : hotPicks(states, iso, N, 1, false, false, iso)).filter(r => ps.some(p => dspHas(r.b, p)))
     .map(r => Object.assign({ pm: ps.filter(p => dspHas(r.b, p)), d: other.some(p => dspHas(r.b, p)) ? 1 : 0 }, r))
-    .sort((a,b) => (b.str + b.d) - (a.str + a.d) || b.sys - a.sys || (a.b < b.b ? -1 : 1)).slice(0, n);
+    .sort((a,b) => (b.sys + b.d) - (a.sys + a.d) || (b.str + b.d) - (a.str + a.d) || (a.b < b.b ? -1 : 1)).slice(0, n);
 }
 let DSP4 = { key:null, rows:[], done:false, run:0 };
 function dspScore4(iso, states, scope){
@@ -1318,9 +1318,13 @@ function dspHot4HTML(iso){
   let h = '<div class="famh" style="margin-top:10px">Hottest numbers for these pairs <span class="me">all eight systems (G Q Y P N V M S), built from the draws before '+fmtDate(iso).replace(/, \d{4}$/, '')+', '+((document.getElementById('hotDays')||{}).value||7)+'-day window</span></div>'+
     '<div class="controls" style="margin:0 0 6px"><label>Rank by <select onchange="dsp4SetRank(this.value)"><option value="hits"'+(DSP4_RANK==='hits'?' selected':'')+'>most hits &mdash; all-different numbers first</option><option value="signals"'+(DSP4_RANK==='signals'?' selected':'')+'>most signals</option></select></label>'+
     '<label>Show <select onchange="dsp4SetShow(this.value)">'+[12,15,20,30,200].map(v => '<option value="'+v+'"'+(DSP4_SHOW===v?' selected':'')+'>'+(v===200?'all':v)+'</option>').join('')+'</select></label>'+
-    '<span class="me">'+(DSP4_RANK==='hits' ? 'Over the year, picks on this list came 16% of days (vs 11.5% ranked by signals) &mdash; all-different numbers have 24 ways to come but pay less as a box.' : 'Ranked by how many systems point at it; doubles, triples and quads come less often.')+'</span></div>';
-  h += top.length ? '<div class="heatgrid">'+top.map((r, i) => { const c = came[r.b];
-      return (i === 12 ? '</div><div class="famh" style="margin-top:8px">Next in line <span class="me">past the top 12 &mdash; not graded on the scorecard</span></div><div class="heatgrid">' : '')+'<div class="heat '+(i<6?'hot':i<12?'warm':'')+'" onclick="useSeed(\''+r.b+'\')" style="'+(c?'opacity:.6;text-decoration:line-through':'')+'"><div class="hn">'+r.b+'</div><div class="ht">'+hotLetters(r)+(r.d?'<i style="background:#0E7C86;color:#fff;font-style:normal;padding:0 3px;border-radius:2px">D</i>':'')+'</div><div class="hs">'+KN[r.k]+' &middot; '+r.str.toFixed(1)+'/8 &middot; '+r.pm.map(p => p+'xx').join(' ')+(c ? ' &middot; came '+c.slice(0,2).join(', ') : hasDay ? ' &middot; not yet' : '')+'</div></div>'; }).join('')+'</div>'
+    '<span class="me">'+(DSP4_RANK==='hits' ? 'Over the year, picks on this list came 16% of days (vs 11.5% ranked by signals) &mdash; all-different numbers have 24 ways to come but pay less as a box.' : 'Most letters first: grouped by how many systems agree, then by score. Red = top 6, orange = next 9. Doubles, triples and quads come less often than singles.')+'</span></div>';
+  const LET = r => r.sys + (r.d ? 1 : 0), byLet = DSP4_RANK === 'signals';
+  const groupHead = (r, i) => { if(!byLet) return i === 12 ? '</div><div class="famh" style="margin-top:8px">Next in line <span class="me">past the top 12 &mdash; not graded on the scorecard</span></div><div class="heatgrid">' : '';
+    if(i > 0 && LET(top[i-1]) === LET(r)) return ''; const n = top.filter(x => LET(x) === LET(r)).length;
+    return (i ? '</div>' : '') + '<div class="famh" style="margin-top:'+(i?10:2)+'px">'+LET(r)+' systems agree <span class="me">'+n+' number'+(n>1?'s':'')+'</span></div><div class="heatgrid">'; };
+  h += top.length ? (byLet ? '' : '<div class="heatgrid">')+top.map((r, i) => { const c = came[r.b];
+      return groupHead(r, i)+'<div class="heat '+(i<6?'hot':i<15?'warm':'')+'" onclick="useSeed(\''+r.b+'\')" style="'+(c?'opacity:.6;text-decoration:line-through':'')+'"><div class="hn">'+r.b+'</div><div class="ht">'+hotLetters(r)+(r.d?'<i style="background:#0E7C86;color:#fff;font-style:normal;padding:0 3px;border-radius:2px">D</i>':'')+'</div><div class="hs">'+KN[r.k]+' &middot; '+r.str.toFixed(1)+'/8 &middot; '+r.pm.map(p => p+'xx').join(' ')+(c ? ' &middot; came '+c.slice(0,2).join(', ') : hasDay ? ' &middot; not yet' : '')+'</div></div>'; }).join('')+'</div>'
     : '<div class="note">No number holding these pairs has a system behind it in this region.</div>';
   const S = dspScore4(iso, states, scope);
   h += '<div class="famh" style="margin-top:10px">How this list has done</div><div id="dsp4Score">'+(S.done ? dspScore4HTML() : '<div class="note">Checking the last 28 mornings&hellip;</div>')+'</div>';
