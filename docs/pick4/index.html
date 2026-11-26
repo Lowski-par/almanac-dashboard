@@ -83,6 +83,12 @@
       <label>Look at <select id="mpK" onchange="renderMissingToday()"><option value="3" selected>Triads (123x, 122x)</option><option value="2">Pairs (12xx, 22xx)</option></select></label>
     </div>
     <div id="mpBody" class="note" style="margin-top:10px"></div>
+    <div class="famh" style="margin-top:16px">Look up a pair &mdash; which states need it</div>
+    <div class="controls">
+      <label>Pair or triad <input id="mpLook" placeholder="e.g. 023x or 00xx" maxlength="4" inputmode="numeric" autocomplete="off" oninput="renderPairLookup()" style="width:9em;font-family:'Roboto Mono',monospace;font-size:16px"></label>
+      <span class="me">type 2 digits for a pair (00xx, 12xx) or 3 for a triad (023x, 122x) &mdash; x&rsquo;s optional</span>
+    </div>
+    <div id="mpLookBody" class="note" style="margin-top:8px"></div>
   </section>
 
   <section id="tab-pairs2" class="card" data-with="pairs" hidden>

@@ -530,6 +530,48 @@ function renderMissingToday(){
     <div class="note">Numbers are boxed (any order). &ldquo;Best numbers&rdquo; = the numbers that hold the ${k===3?'triad':'pair'}, scored by the same 8 systems as the Hottest board (<b>G</b> 100 Grand/Relatives, <b>Q</b> Big Quad, <b>Y</b> My Lil Yeah, <b>P</b> longest-out pairs, <b>N</b> neighbors, <b>V</b> Vibrations, <b>M</b> Mirror Doubles, <b>S</b> Date Sum &mdash; the Date Sums tab&rsquo;s day and settings). Tap any number to open it on 100 Grand.</div>`;
 }
 
+/* ---------- Look up a pair: which states need it (Marcus, Nov 26) ----------
+   Type 00xx / 12xx (pair) or 023x / 122x (triad). For every state: how many days since a draw there
+   held it, the usual wait there (chance, from that state's draws per day), and how far past usual it is.
+   For the states that need it most, the best numbers holding it — scored by every system for that state. */
+let MPL_RUN = 0;
+function renderPairLookup(){
+  const el = document.getElementById('mpLookBody'); if(!el) return;
+  const raw = (document.getElementById('mpLook').value || '').replace(/[^0-9]/g, '');
+  if(raw.length < 2 || raw.length > 3){ el.innerHTML = raw.length ? 'Type 2 digits for a pair or 3 for a triad.' : ''; return; }
+  const p = raw.split('').sort().join(''), k = p.length, label = p + 'x'.repeat(4 - k);
+  const today = todayCT(), cov = mpCov(p), fill = mpFill(p);
+  const rows = Object.keys(SEQ).map(S => { const s = SEQ[S] || []; if(!s.length) return null;
+    let last = null; for(let i = s.length - 1; i >= 0; i--) if(cof(k, s[i].n).has(p)){ last = s[i]; break; }
+    const days = daysBetween(s[0].d, today) || 1, perDay = s.length / days;
+    const usual = 1 / (cov * perDay);                       // days between hits by chance in this state
+    const out = last ? daysBetween(last.d, today) : daysBetween(s[0].d, today);
+    return { S, last, out, usual, x: out / usual, perDay, never: !last };
+  }).filter(Boolean).sort((a, b) => b.x - a.x || b.out - a.out);
+  const runId = ++MPL_RUN;
+  const withYear = dsYearMode(), root = (document.getElementById('dsGroup')||{}).value === 'root';
+  const TOPN = 10, best = {};
+  const row = (r, i) => { const hot = i < 3 ? 'var(--pen)' : i < TOPN ? '#D9822B' : '';
+    return `<tr><td class="me">${i+1}</td><td class="stname" style="${hot?'font-weight:700;color:'+hot:''}">${nm(r.S)}</td>
+      <td style="font-weight:700">${r.out} day${r.out===1?'':'s'}${r.never?'+':''}</td><td class="me">~${r.usual < 10 ? r.usual.toFixed(1) : Math.round(r.usual)}</td>
+      <td style="font-weight:700;${r.x >= 2 ? 'color:var(--pen)' : ''}">${r.x.toFixed(1)}&times;</td>
+      <td class="me">${r.last ? r.last.n + ' ' + r.last.d.slice(5) + (r.last.s ? r.last.s.toUpperCase() : '') : 'not in the record'}</td>
+      <td id="mplBest_${r.S}">${i < TOPN ? '<span class="me">&hellip;</span>' : ''}</td></tr>`; };
+  el.innerHTML = `<div class="verdict"><b>${label}</b> &mdash; ${fill.length} numbers hold it (${(cov*100).toFixed(1)}% of all draws). States ranked by how far past their usual wait it is.</div>
+    <div class="tscroll"><table class="tbl"><tr><th>#</th><th>state</th><th>out</th><th>usual wait (days)</th><th>past usual</th><th>last time</th><th>best numbers to play there (score / 8)</th></tr>${rows.map(row).join('')}</table></div>
+    <div class="note">&ldquo;Usual wait&rdquo; = how often ${label} comes in that state by chance, from how many draws it has a day. 2&times; or more is red. The top ${TOPN} states get the best numbers holding ${label}, scored by all the systems for that state (G Q Y P N V M S, today&rsquo;s Date Sum as set on the Date Sums tab). Being past due has not raised the odds in our tests (per state 1.00&times;) &mdash; this tells you where it&rsquo;s been missing longest.</div>`;
+  // best numbers, one state at a time so the page never freezes
+  const todo = rows.slice(0, TOPN).map(r => r.S);
+  const step = () => { if(runId !== MPL_RUN) return; const S = todo.shift(); if(!S) return;
+    const regKey = Object.keys(REGION4).find(kk => REGION4[kk].states.includes(S));
+    const L = needList([S], today, 14, 0.5, regKey, withYear, root, dsPlayDay()); const SC = {}; L.all.forEach(r => SC[r.b] = r);
+    const top = fill.map(b => ({ b, r: SC[b], sc: SC[b] ? SC[b].str : 0 })).sort((a, c) => c.sc - a.sc || (a.b < c.b ? -1 : 1)).slice(0, 3);
+    const cell = document.getElementById('mplBest_' + S);
+    if(cell) cell.innerHTML = top.map((x, j) => `<span class="chip ${j===0?'hotr':'warmo'}" onclick="useSeed('${x.b}')" title="${x.sc.toFixed(1)}/8">${x.b}<span class="mk">${x.sc.toFixed(1)}</span></span>${x.r ? hotLetters(x.r) : ''}`).join(' ');
+    setTimeout(step, 0); };
+  setTimeout(step, 0);
+}
+
 const GCACHE = new Map();
 function groupsFor(seed){
   if(GCACHE.has(seed)) return GCACHE.get(seed);
