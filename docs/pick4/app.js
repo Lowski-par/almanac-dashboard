@@ -101,6 +101,7 @@ function showTab(t){
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab===t));
   document.querySelectorAll('section[id^=tab-]').forEach(s => s.hidden = !(s.id === 'tab-'+t || s.dataset.with === t));
   try{ localStorage.setItem('p4tab', t); }catch(e){}
+  if(t === 'log') renderHitLog();
 }
 function initControls(){
   const last = DATES[DATES.length-1];
@@ -570,6 +571,65 @@ function renderPairLookup(){
     if(cell) cell.innerHTML = top.map((x, j) => `<span class="chip ${j===0?'hotr':'warmo'}" onclick="useSeed('${x.b}')" title="${x.sc.toFixed(1)}/8">${x.b}<span class="mk">${x.sc.toFixed(1)}</span></span>${x.r ? hotLetters(x.r) : ''}`).join(' ');
     setTimeout(step, 0); };
   setTimeout(step, 0);
+}
+
+/* ---------- Hit Log (Marcus, Nov 26): is each signal actually helping? ----------
+   Every Pick 4 draw of the last 30 days is a hit for its number in its state. For each one we look at how
+   that number read in that state the morning of the draw (built only from earlier draws):
+     relatives  - how many of its relatives fell in that state in the 7 days before (lookup: 5+ hot, 1-4 warm)
+     overdue    - out 2x or more past its usual wait in that state
+     hot board  - in the top 12 of the all-states Hottest board that morning
+     date sum   - holds that day's Date Sum (both month+day and +year)
+   "Chance would give" = how many hits would have that signal lit if numbers came at random, given how many
+   numbers had it lit each morning in each state (weighted by their ways to come). Ratio above 1 = helping. */
+let HITLOG = { key: null, html: null, run: 0 };
+function renderHitLog(){
+  const el = document.getElementById('logBody'); if(!el || !DATES.length) return;
+  const key = DATES.length + '|' + DATES[DATES.length-1]; if(HITLOG.key === key && HITLOG.html){ el.innerHTML = HITLOG.html; return; }
+  const run = ++HITLOG.run; HITLOG.key = key; HITLOG.html = null;
+  const states = Object.keys(SEQ), last = DATES[DATES.length-1];
+  const days = DATES.filter(d => d > isoAdd(last, -30) && d <= last);
+  // relatives, both ways, for every box -> who counts a fallen box as its relative
+  const REV = {}; for(const b of ALLBOX) for(const r of Object.keys(relativesOf(b))) (REV[r] = REV[r] || []).push(b);
+  const W = b => boxCover([b]) / 10000;
+  const S = { rh:[0,0], rw:[0,0], rn:[0,0], od:[0,0], hb:[0,0], ds:[0,0] };   // [hits with it lit, chance]
+  const recent = []; let total = 0;
+  let di = 0;
+  const step = () => { if(run !== HITLOG.run) return; const D = days[di++];
+    if(!D){ finish(); return; }
+    const hot = new Set(hotPicks(states, D, 7, 2, 'both', false, D).slice(0, 12).map(r => r.b));
+    const dsS = dsSet(D, 'both', false);
+    let hotW = 0, dsW = 0; for(const b of hot) hotW += W(b); for(const b of dsS) dsW += W(b);
+    for(const st of states){ const seq = SEQ[st] || []; const today = seq.filter(x => x.d === D); if(!today.length) continue;
+      const before = seq.filter(x => x.d < D);
+      // relatives count per box from this state's last 7 days
+      const cnt = {}; for(const x of before) if(x.d >= isoAdd(D, -7)) for(const b of (REV[box(x.n)] || [])) cnt[b] = (cnt[b] || 0) + 1;
+      // overdue: out >= 2x usual wait (from this state's draws per day)
+      const span = Math.max(1, daysBetween(seq[0].d, D)), perDay = before.length / span; const lastSeen = {}; for(const x of before) lastSeen[box(x.n)] = x.d;
+      const od = b => { const usual = 1 / (W(b) * perDay || 1e-9); const out = lastSeen[b] ? daysBetween(lastSeen[b], D) : span; return out >= 2 * usual; };
+      let rhW = 0, rwW = 0, odW = 0; for(const b of ALLBOX){ const c = cnt[b] || 0, w = W(b); if(c >= 5) rhW += w; else if(c >= 1) rwW += w; if(od(b)) odW += w; }
+      const n = today.length; total += n;
+      S.rh[1] += n * rhW; S.rw[1] += n * rwW; S.rn[1] += n * (1 - rhW - rwW); S.od[1] += n * odW; S.hb[1] += n * hotW; S.ds[1] += n * dsW;
+      for(const x of today){ const b = box(x.n), c = cnt[b] || 0, lit = [];
+        if(c >= 5){ S.rh[0]++; lit.push(c + ' relatives'); } else if(c >= 1){ S.rw[0]++; lit.push(c + ' relative' + (c > 1 ? 's' : '')); } else S.rn[0]++;
+        if(od(b)){ S.od[0]++; lit.push('overdue'); } if(hot.has(b)){ S.hb[0]++; lit.push('hot board'); } if(dsS.has(b)){ S.ds[0]++; lit.push('date sum'); }
+        recent.push({ x, st, lit }); } }
+    el.innerHTML = '<div class="note">Building the log&hellip; day ' + di + ' of ' + days.length + '</div>';
+    setTimeout(step, 0); };
+  const finish = () => {
+    const word = (h, e) => { if(e < 5) return '<span class="me">too few yet</span>'; const r = h / e, sd = Math.sqrt(e);
+      return h - e > 2 * sd ? '<b style="color:var(--green)">helping</b>' : e - h > 2 * sd ? '<b style="color:var(--pen)">hurting</b>' : '<span class="me">no edge yet</span>'; };
+    const row = (lab, k) => `<tr><td>${lab}</td><td style="font-weight:700">${S[k][0]}</td><td>${S[k][1].toFixed(0)}</td><td style="font-weight:700">${S[k][1] ? (S[k][0] / S[k][1]).toFixed(2) + '&times;' : '&mdash;'}</td><td>${word(S[k][0], S[k][1])}</td></tr>`;
+    const lastHits = recent.filter(r => r.lit.length).slice(-40).reverse();
+    HITLOG.html = `<div class="verdict">Last 30 days, every state: <b>${total.toLocaleString()}</b> Pick 4 draws. For each one: how was that number reading in that state the morning it came &mdash; and is that more than luck?</div>
+      <div class="tscroll"><table class="tbl"><tr><th>signal lit that morning</th><th>hits</th><th>chance would give</th><th>ratio</th><th></th></tr>
+      ${row('5+ relatives fell there in 7 days (hot / super hot)', 'rh')}${row('1&ndash;4 relatives fell there (warm)', 'rw')}${row('no relatives there', 'rn')}
+      ${row('overdue there (2&times; past its usual wait)', 'od')}${row('on the Hottest board (all states, top 12)', 'hb')}${row('holds the Date Sum (both)', 'ds')}</table></div>
+      <div class="note"><b>Ratio</b> above 1.00 = numbers came with that signal lit more often than luck; below 1.00 = less. &ldquo;Helping&rdquo; only shows when it&rsquo;s clearly beyond normal luck. This rebuilds every day, so it grows on its own.</div>
+      <div class="famh" style="margin-top:12px">Latest hits with a signal lit</div>
+      <div class="tscroll"><table class="tbl"><tr><th>date</th><th></th><th>state</th><th>came</th><th>what was lit</th></tr>${lastHits.map(r => `<tr><td>${fmtDate(r.x.d).replace(/, \d{4}$/,'')}</td><td class="me">${r.x.s==='m'?'mid':r.x.s==='e'?'eve':''}</td><td class="stname">${nm(r.st)}</td><td>${chip(r.x.n,'gone')}</td><td class="me">${r.lit.join(' &middot; ')}</td></tr>`).join('')}</table></div>`;
+    el.innerHTML = HITLOG.html; };
+  el.innerHTML = '<div class="note">Building the log&hellip;</div>'; setTimeout(step, 0);
 }
 
 const GCACHE = new Map();

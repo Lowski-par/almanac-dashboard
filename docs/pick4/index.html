@@ -47,6 +47,7 @@
     <button class="ghost" data-tab="mly" onclick="showTab('mly')">My Lil Yeah</button>
     <button class="ghost" data-tab="need" onclick="showTab('need')">State Specific BAAABY</button>
     <button class="ghost" data-tab="mirr" onclick="showTab('mirr')">Mirror Doubles</button>
+    <button class="ghost" data-tab="log" onclick="showTab('log')">Hit Log</button>
   </div>
 
   <!-- WHAT EVERY STATE DREW -->
@@ -223,6 +224,10 @@
     <div id="needWhere" class="note"></div>
     <details style="margin-top:14px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Does pull work? &mdash; scorecard for this state</summary><div id="needScore" class="note">Open to compute.</div></details>
     <div class="note"><b>Pull</b> = how many relatives of a number have fallen in this state in the window, counting all four systems: <b>G</b> seeds drawn here whose 100 Grand list holds it, <b>Q</b> Big Quad relatives of its set that fell here, <b>Y</b> Family Tree relatives that fell here, <b>S</b> +1 if it is in today&rsquo;s Date Sum group. Numbers that already came in the window are left off the &ldquo;due&rdquo; list. Chance is shown beside every count: a number with many relatives is usually a single (24 ways) and would be expected more often anyway.</div>
+  </section>
+  <section id="tab-log" class="card" hidden>
+    <h2>Hit Log <span class="count">is each signal actually helping?</span></h2>
+    <div id="logBody" class="note">Open this tab to build the log&hellip;</div>
   </section>
   <section id="tab-mirr" class="card" hidden>
     <h2>Mirror Doubles <span class="count">10 sets &mdash; a single and its four mirror doubles (0&harr;5 1&harr;6 2&harr;7 3&harr;8 4&harr;9)</span></h2>
