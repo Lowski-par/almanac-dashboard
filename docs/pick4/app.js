@@ -1262,8 +1262,9 @@ function renderSumPairs(){
    mornings, each list graded on its own day and on the 14 days from it.
    Tested every morning Oct 2025 - Nov 2026, top 12: all states same day 411 vs 411.8 (1.00x), within 14 days
    2,856 vs 2,854.5 (1.00x); Northeast same day 1.09x, Southeast 0.95x (14 days 1.05x), Central 1.05x, West 0.95x. */
-let DSP4_RANK = (function(){ try{ return localStorage.getItem('dsp4Rank') || 'hits'; }catch(e){ return 'hits'; } })();
-function dsp4SetRank(v){ DSP4_RANK = v; try{ localStorage.setItem('dsp4Rank', v); }catch(e){} DSP4.key = null; renderSums(); }
+// default = most letters first (Marcus, Nov 26); new storage key so every screen starts there
+let DSP4_RANK = (function(){ try{ return localStorage.getItem('dsp4Rank2') || 'signals'; }catch(e){ return 'signals'; } })();
+function dsp4SetRank(v){ DSP4_RANK = v; try{ localStorage.setItem('dsp4Rank2', v); }catch(e){} DSP4.key = null; renderSums(); }
 let DSP4_SHOW = (function(){ try{ return +localStorage.getItem('dsp4Show') || 15; }catch(e){ return 15; } })();
 function dsp4SetShow(v){ DSP4_SHOW = +v; try{ localStorage.setItem('dsp4Show', v); }catch(e){} renderSums(); }
 function dspHot4(iso, states, n){ n = n || 12;
@@ -1316,7 +1317,7 @@ function dspHot4HTML(iso){
   for(const c of states) for(const x of (SEQ[c]||[])) if(x.d === iso) (came[box(x.n)] = came[box(x.n)] || []).push(x.n+' '+nm(c));
   const KN = {24:'single',12:'double',6:'2 doubles',4:'triple',1:'quad'}, hasDay = Object.keys(came).length || (P4[iso] && Object.keys(P4[iso]).length);
   let h = '<div class="famh" style="margin-top:10px">Hottest numbers for these pairs <span class="me">all eight systems (G Q Y P N V M S), built from the draws before '+fmtDate(iso).replace(/, \d{4}$/, '')+', '+((document.getElementById('hotDays')||{}).value||7)+'-day window</span></div>'+
-    '<div class="controls" style="margin:0 0 6px"><label>Rank by <select onchange="dsp4SetRank(this.value)"><option value="hits"'+(DSP4_RANK==='hits'?' selected':'')+'>most hits &mdash; all-different numbers first</option><option value="signals"'+(DSP4_RANK==='signals'?' selected':'')+'>most signals</option></select></label>'+
+    '<div class="controls" style="margin:0 0 6px"><label>Rank by <select onchange="dsp4SetRank(this.value)"><option value="signals"'+(DSP4_RANK==='signals'?' selected':'')+'>most letters first (systems agreeing)</option><option value="hits"'+(DSP4_RANK==='hits'?' selected':'')+'>all-different numbers first</option></select></label>'+
     '<label>Show <select onchange="dsp4SetShow(this.value)">'+[12,15,20,30,200].map(v => '<option value="'+v+'"'+(DSP4_SHOW===v?' selected':'')+'>'+(v===200?'all':v)+'</option>').join('')+'</select></label>'+
     '<span class="me">'+(DSP4_RANK==='hits' ? 'Over the year, picks on this list came 16% of days (vs 11.5% ranked by signals) &mdash; all-different numbers have 24 ways to come but pay less as a box.' : 'Most letters first: grouped by how many systems agree, then by score. Red = top 6, orange = next 9. Doubles, triples and quads come less often than singles.')+'</span></div>';
   const LET = r => r.sys + (r.d ? 1 : 0), byLet = DSP4_RANK === 'signals';
