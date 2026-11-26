@@ -117,6 +117,7 @@ function renderHot(){
   for(const r of BF_RULES.concat(BF_MINE)){ const S = bfScore(r);
     for(const e of bfRecent(r, asOf, 7)) for(const f of r.fol) for(const key of bfFam(f)) add(key, 'Brings & follows · '+(r.name||r.trig), e.x.c, S.verdict==='beats');
   }
+  if(typeof sysHotVotes === 'function'){ try{ sysHotVotes(tally, add, asOf); }catch(err){} }
   const top = [...tally.entries()].map(([k,t])=>({k, m:t.sys.size, s:t.states.size, strong:t.strong, t}))
     .filter(x => x.m >= 2 || x.strong).sort((a,b)=> (b.strong-a.strong) || (b.m-a.m) || (b.s-a.s) || a.k.localeCompare(b.k)).slice(0,30);
   if(!top.length){ $('convOut').innerHTML='<div class="empty">No number has two or more systems behind it today.</div>'; return; }
@@ -126,7 +127,7 @@ function renderHot(){
   const came = top.map(x=>({k:x.k, a:(BOXIDX.get(x.k)||[]).filter(d=>d.d>asOf)})).filter(x=>x.a.length);
   h += `</div><div class="sub-h" style="margin:12px 0 4px;font-size:11.5px">Came since ${fmtShort(asOf)}, any state · ${came.length} of ${top.length}</div>` +
     (came.length ? `<div style="font-size:12.5px;line-height:1.55;color:var(--ink-2)">${came.map(x=>`<span class="mono" style="letter-spacing:.06em">${x.k}</span> → `+x.a.map(d=>`${esc(d.c.toUpperCase())} ${esc(slotName(d.c,d.s))} ${fmtShort(d.d)} <span class="mono">(${d.n})</span>`).join(', ')).join('<br>')}</div>` : '<div class="empty" style="font-size:12.5px;padding:0">None yet.</div>');
-  h += '<div class="note">Every system on this page votes from the day\'s draws: the five workbook rundowns, the mirror, the 67867 and 34534 rundowns, the Lottery Post methods, and any Brings &amp; follows rule whose trigger fired in the last 7 days. A number is listed when two or more systems name it, ordered by how many agree. ★ marks a vote from a rule that beats chance in its scorecard. Hover a number for its sources. Honest reading: in testing, numbers that several systems agreed on came at the same rate as random boxes, so treat agreement as a shortlist, not a signal.</div>';
+  h += '<div class="note">Every system on this page votes from the day\'s draws: the five workbook rundowns, the mirror, the 67867 and 34534 rundowns, the Lottery Post methods, the mirror mixes (each digit kept or flipped), and any Brings &amp; follows rule whose trigger fired in the last 7 days. Then a named number picks up a vote for holding today\'s last digit triads, the date sum, a state\'s longest-out triads, or a ready Mirror Doubles set. A number is listed when two or more systems name it, ordered by how many agree. ★ marks a vote from a rule that beats chance in its scorecard. Hover a number for its sources. Honest reading: in testing, numbers that several systems agreed on came at the same rate as random boxes, so treat agreement as a shortlist, not a signal.</div>';
   $('convOut').innerHTML = h;
 }
 

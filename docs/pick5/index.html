@@ -161,6 +161,19 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
   <div class="note">Pick 4 covers every state, DC, Puerto Rico and Canada. States with more than two Pick 4 draws a day (like Texas, Tennessee, DC and Oregon) list each one in time order under its column. Pick 4 triples are highlighted. For Pick 5, box type shows how many ways the number can be arranged (120-way = all different digits; 60-way = one pair; 5-way = four of a kind). Georgia FIVE has no box bet. Pick 4 history starts June 1, 2026. Tap any number to look it up.</div></div>
 </details>
 
+<details class="panel" open id="pBoard"><summary><h2>Today&rsquo;s board</h2><span class="sub">every rundown and every system working together on every draw of the day</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Show <select id="boardTop"><option value="10">top 10</option><option value="20" selected>top 20</option><option value="40">top 40</option></select></label>
+      <label>Check the last <select id="boardDays"><option value="14">14 days</option><option value="30" selected>30 days</option><option value="60">60 days</option><option value="365">365 days (slower)</option></select></label>
+    </div>
+    <div id="boardOut"><div class="empty">Loading draws&hellip;</div></div>
+    <div class="note"><b>R</b> rundowns (Endeavor and the workbook's others, 67867, 34534) &middot; <b>X</b> mirror and mirror mixes &middot; <b>L</b> Lottery Post 814 rundown and projection &middot; <b>B</b> Brings &amp; follows &middot; <b>F</b> made from a draw that hit a date sum &middot; <b>D</b> holds today's last digit triads &middot; <b>S</b> today's date sum or date sum pairs &middot; <b>P</b> longest-out triads &middot; <b>Q</b> longest-out fours (all states) &middot; <b>M</b> a ready Mirror Doubles set. Pick an earlier day under "Draws for" to see that day's board.</div>
+    <div class="sub-h">How the board has done</div>
+    <div id="boardCheck"></div>
+  </div>
+</details>
+
 <details class="panel" open id="pEnd"><summary><h2>Endeavor rundowns</h2><span class="sub">your workbook, run on every state's last draw</span></summary>
   <div class="pbody">
     <div class="ctl">
@@ -223,6 +236,73 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
 
 <details class="panel" open id="pConv"><summary><h2>Hot list</h2><span class="sub">numbers that two or more systems on this page agree on today</span></summary>
   <div class="pbody"><div id="convOut"></div></div>
+</details>
+
+<details class="panel" open id="pAIO"><summary><h2>State all-in-one</h2><span class="sub">every system on this page as one unit, for one state</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>State <select id="aioState"></select></label>
+      <label>Show <select id="aioTop"><option value="10">top 10</option><option value="20" selected>top 20</option><option value="40">top 40</option></select></label>
+    </div>
+    <div id="aioOut"><div class="empty">Loading draws&hellip;</div></div>
+  </div>
+</details>
+
+<details class="panel" open id="pDS"><summary><h2>Date sums</h2><span class="sub">every version from Pick 3 and Pick 4, plus last digit triads for Pick 5, graded side by side</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Version <select id="dsVer">
+        <option value="last3">Last digit triads (new for Pick 5)</option>
+        <option value="last2">Last digit sum pairs</option>
+        <option value="pairs">Date sum pairs</option>
+        <option value="md">Sum: month + day</option>
+        <option value="mdy">Sum: month + day + year</option>
+        <option value="both">Sum: both</option>
+        <option value="rmd">Root: month + day</option>
+        <option value="rmdy">Root: month + day + year</option>
+      </select></label>
+      <label>Day <input type="date" id="dsDay"></label>
+      <label>Count <select id="dsState"></select></label>
+    </div>
+    <div id="dsOut"><div class="empty">Loading draws&hellip;</div></div>
+    <div class="sub-h">Which date sum is best? Every version on every draw on file</div>
+    <div id="dsCard"></div>
+    <div class="note">Leave Day blank to follow "Draws for" at the top. Last digit triads: the date's last digit and its mirror (0&harr;5 1&harr;6 2&harr;7 3&harr;8 4&harr;9) made into threes &mdash; the 26th &rarr; 666xx 111xx 616xx 116xx. Last digit sum pairs and date sum pairs are the Pick 4 rules with any three other digits. Sums add the date's digits; a Pick 5 number's digits add to 0&ndash;45.</div>
+  </div>
+</details>
+
+<details class="panel" open id="pMix"><summary><h2>Mirrors</h2><span class="sub">mirror mixes from every draw, and the Mirror Doubles sets</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>From <select id="mixState"></select></label>
+      <label>or type a number <input class="big" id="mixBox" maxlength="5" inputmode="numeric" placeholder="83841"></label>
+    </div>
+    <div id="mixOut"><div class="empty">Loading draws&hellip;</div></div>
+    <div class="sub-h">How mirror mixes have done on every draw on file</div>
+    <div id="mixCard"></div>
+    <div class="sub-h">Mirror Doubles &middot; 10 sets</div>
+    <div class="ctl">
+      <label>Count in <select id="mdScope"><option value="all">all states</option><option value="state">the state above</option></select></label>
+      <label>Window <select id="mdWin"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select></label>
+    </div>
+    <div id="mdOut"></div>
+  </div>
+</details>
+
+<details class="panel" open id="pPS"><summary><h2>Pair sets &amp; missing pairs</h2><span class="sub">type a pair &rarr; its ten sets; the date's pairs that missed; longest-out triads and fours, one state or all</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>State <select id="psState"></select></label>
+      <label>Pair <input class="big" id="psPair" maxlength="2" inputmode="numeric" placeholder="45" style="width:70px"></label>
+    </div>
+    <div id="psOut"><div class="empty">Loading draws&hellip;</div></div>
+    <div class="sub-h">Longest out</div>
+    <div class="ctl">
+      <label>Look at <select id="loSize"><option value="3">Triads (123xx)</option><option value="4">Fours (1234x)</option></select></label>
+      <label>Count in <select id="loScope"><option value="state">the state above</option><option value="all">all states together</option></select></label>
+    </div>
+    <div id="loOut"></div>
+  </div>
 </details>
 
 <details class="panel" open id="pBF"><summary><h2>Brings &amp; follows</h2><span class="sub">your pairings, each graded on every draw on file</span></summary>
@@ -336,6 +416,7 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
 <script src="app-1.js?v=live1"></script>
 <script src="triple-1.js"></script>
 <script src="bf-1.js"></script>
+<script src="sys-1.js"></script>
 
 
 </body></html>
