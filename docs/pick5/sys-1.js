@@ -563,3 +563,29 @@ document.addEventListener('change', e => { if(e.target.id === 'whyState'){ store
 document.addEventListener('input', e => { if(e.target.id === 'whyBox'){ const v = e.target.value.replace(/\D/g, ''); if(v.length === 5 || !v.length) renderWhy(); } });
 document.addEventListener('click', e => { const l = e.target.closest('[data-look]'); if(l && /^\d{5}$/.test(l.dataset.look) && $('whyBox') && !e.target.closest('#pWhy')){ $('whyBox').value = l.dataset.look; try{ renderWhy(); }catch(err){} } });
 (function(){ const base = renderAll; renderAll = function(){ base(); try{ renderWhy(); }catch(err){ console.error(err); if($('whyOut')) $('whyOut').innerHTML = '<div class="empty">This report could not load.</div>'; } }; })();
+
+/* ══ ONE FLIP AWAY · live test (Marcus, Nov 26) ══
+   Every draw of a day → its five one-digit mirror flips (44009 → 54009 49009 44509 44059 44004), as boxes.
+   Graded on the next day's draws in every state. Look back (Aug 2021 – Nov 26 2026): 861 vs 814.6 by chance (1.06x),
+   against 1.00x when the same boxes are checked 2-30 days later (2 of 15 later days as high) — a lean, not proven.
+   The live count starts with the Nov 27, 2026 draws. */
+const SY_FLIP_LIVE = '2026-11-27';
+function syFlipBoxes(day){ const B = new Set(), own = new Set(); for(const c in SEQ) for(const x of SEQ[c]) if(x.d === day){ own.add(srt(x.n)); for(const v of syFlipOne(x.n)) B.add(srt(v)); } own.forEach(b => B.delete(b)); return B; }
+function syFlipLive(){
+  const R = [0, 0, 0];
+  const days = DATES.filter(d => d >= SY_FLIP_LIVE);
+  for(const d of days){ const nx = syShift(d, 1); if(!DATES.includes(nx)) continue; const B = syFlipBoxes(d); let sh = 0; B.forEach(b => sh += ways(b)); sh /= 1e5;
+    const dr = syDrawsOn(nx, ''); R[0] += dr.filter(x => B.has(srt(x.n))).length; R[1] += dr.length * sh; R[2]++; }
+  return R;
+}
+function renderFlip(){
+  if(!$('flipOut') || !Object.keys(SEQ).length) return;
+  const d = syPlayDay(), B = [...syFlipBoxes(d)].sort(), R = syFlipLive();
+  $('flipOut').innerHTML = `<div class="tiles"><div class="tile"><div class="k">Live test from ${fmtShort(SY_FLIP_LIVE)}: one flip away → next day, any state</div><div class="v">${R[0]} / ${R[1].toFixed(1)}</div><div class="k">${R[2]} day${R[2] === 1 ? '' : 's'} graded · came vs chance${R[1] > 0 ? ' · ' + (R[0] / R[1]).toFixed(2) + '×' : ''}</div></div></div>
+    <div style="font-size:13.5px">${fmtShort(d)}'s draws make <b>${B.length}</b> one-flip boxes for the next day. <button class="btn" type="button" data-sycopy="flip">Copy them</button> <span id="flipCopied" style="color:var(--good);font-size:13px" aria-live="polite"></span></div>
+    <div class="note">One flip away: change one digit of a draw to its mirror (0&harr;5 1&harr;6 2&harr;7 3&harr;8 4&harr;9) &mdash; Louisiana&rsquo;s 44009 &rarr; 44004. Look back on every day since Aug 2021: 861 next-day hits vs 814.6 by chance (1.06&times;), but only 1.00&times; when the same boxes are checked 2&ndash;30 days later, so it is a lean, not proven. With about 90 boxes a day it is far too many to play; it is tracked to see whether the lean holds. The live tile counts only from ${fmtShort(SY_FLIP_LIVE)} on.</div>`;
+  SY_FLIP_LAST = B;
+}
+let SY_FLIP_LAST = [];
+document.addEventListener('click', e => { const b = e.target.closest('[data-sycopy="flip"]'); if(b) syCopy(SY_FLIP_LAST.join(' '), 'flipCopied', SY_FLIP_LAST.length + ' boxes'); });
+(function(){ const base = renderAll; renderAll = function(){ base(); try{ renderFlip(); }catch(err){ console.error(err); } }; })();

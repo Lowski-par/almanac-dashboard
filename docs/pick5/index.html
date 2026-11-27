@@ -193,13 +193,15 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
   </div>
 </details>
 
-<details class="panel" open id="pMW"><summary><h2>Mirror watch</h2><span class="sub">each state's mirror box from the last week, how many systems back it, and whether it came back</span></summary>
+<details class="panel" open id="pMW"><summary><h2>Mirror watch</h2><span class="sub">each state's mirror box from the last week, how many systems back it, whether it came back &mdash; and one flip away</span></summary>
   <div class="pbody">
     <div class="ctl">
       <label>Draws from the last <select id="mwDays"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select></label>
       <label>Show <select id="mwMin"><option value="4">every draw (4+ systems)</option><option value="5">5+ systems</option><option value="6">6+ systems</option><option value="7">7+ systems</option></select></label>
     </div>
     <div id="mwOut"><div class="empty">Loading draws&hellip;</div></div>
+    <div class="sub-h">One flip away</div>
+    <div id="flipOut"></div>
   </div>
 </details>
 
@@ -218,6 +220,10 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
     <div class="sub-h">How the grids have done</div>
     <div id="g5Card"></div>
   </div>
+</details>
+
+<details class="panel" open id="pGW"><summary><h2>Grid + date sum watch</h2><span class="sub">each day's grid numbers that hold its last digit triads, kept open 14 days</span></summary>
+  <div class="pbody"><div id="gwOut"><div class="empty">Loading draws&hellip;</div></div></div>
 </details>
 
 <details class="panel" open id="pEnd"><summary><h2>Endeavor rundowns</h2><span class="sub">your workbook, run on every state's last draw</span></summary>

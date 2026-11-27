@@ -168,3 +168,48 @@ document.addEventListener('input', e => { if(['g5Seed', 'g5Custom'].includes(e.t
 document.addEventListener('click', e => { const b = e.target.closest('[data-g5copy]'); if(!b) return; const L = G5_LAST[b.dataset.g5copy] || []; syCopy(L.join(' '), 'g5Copied', L.length + ' numbers'); });
 (function(){ for(const id of ['g5Method', 'g5Key', 'g5Top']){ const v = store(id), el = $(id); if(el && v && [...el.options].some(o => o.value === v)) el.value = v; }
   const base = renderAll; renderAll = function(){ base(); try{ renderG5(); }catch(err){ console.error(err); if($('g5Out')) $('g5Out').innerHTML = '<div class="empty">Grid 5 could not load.</div>'; } }; })();
+
+/* ══ GRID + DATE SUM WATCH (Marcus, Nov 26) ══
+   Each day's list: the Grid 5 numbers (ring fill, base + mirror, rows, columns, both diagonals) built from every state's
+   draws the day before, kept only if they hold that day's last digit triads (the 27th → 777xx 222xx 727xx 227xx).
+   Each list stays open 14 days; a number is marked when it comes (box) in any state.
+   Look back, every day since 2021 (list numbers that came at least once): 1 day 1.00x · 3 days 1.03x · 7 days 1.00x ·
+   14 days 1.02x — and the same lists checked 30+ days later ran 0.92x / 1.09x / 1.05x / 1.04x, so waiting longer catches
+   more but there is no timing edge. The live count starts with the list for Nov 27, 2026. */
+const GW_LIVE = '2026-11-27', GW_OPEN = 14;
+function gwList(T){                         // T = the day the list is for
+  const prevDays = DATES.filter(d => d < T); if(!prevDays.length) return null;
+  const prev = prevDays[prevDays.length - 1], spec = syDsSpec('last3', T), F = new Map();
+  for(const x of syDrawsOn(prev, '')){ const B = g5Spiral(x.n, false), M = g5Map(B, g5Mir);
+    for(const [gn, g] of [['base', B], ['mirror', M]]) for(const [lab, l] of g5Lines(g)){ const k = srt(l); if(k === srt(x.n) || !syMatch(k, spec)) continue;
+      if(!F.has(k)) F.set(k, {k, n:l, from:[]}); F.get(k).from.push(`${x.c.toUpperCase()} ${x.n} ${gn} ${lab}`); } }
+  return {T, prev, spec, F};
+}
+function gwCheck(L){                        // which list numbers came within 14 days of T, and the chance of that
+  const t0 = dnum(L.T), last = dnum(DATES[DATES.length - 1] || L.T), end = Math.min(t0 + GW_OPEN - 1, last);
+  let n = 0; const came = [];
+  for(let t = t0; t <= end; t++){ const d = syShift(L.T, t - t0); for(const x of syDrawsOn(d, '')){ n++; if(L.F.has(srt(x.n))) came.push(x); } }
+  let e = 0; for(const k of L.F.keys()) e += 1 - Math.pow(1 - ways(k) / 1e5, n);
+  return {came, n, e, daysIn: Math.max(0, end - t0 + 1), done: last - t0 >= GW_OPEN - 1};
+}
+function renderGW(){
+  if(!$('gwOut') || !Object.keys(SEQ).length) return;
+  const lastDay = DATES[DATES.length - 1], tomorrow = syShift(lastDay, 1);
+  const Ts = []; for(let k = 13; k >= 0; k--) Ts.push(syShift(lastDay, -k)); Ts.push(tomorrow);
+  const rows = Ts.map(T => { const L = gwList(T); if(!L) return null; return {L, C: gwCheck(L)}; }).filter(Boolean).reverse();
+  const nxt = rows[0];
+  let h = `<div class="play"><b>${[...nxt.L.F.values()].map(v => v.k).join(' ') || 'none'}</b><small>The list for ${fmtShort(nxt.L.T)} (${nxt.L.spec.show.join(' ')}): Grid 5 numbers from ${fmtShort(nxt.L.prev)}'s ${syDrawsOn(nxt.L.prev, '').length} draws that hold the day's last digit triads. Each list stays open ${GW_OPEN} days.</small></div>`;
+  h += `<div class="ctl" style="margin:0 0 8px"><button class="btn" type="button" data-gwcopy="1">Copy the list for ${fmtShort(nxt.L.T)}</button><span id="gwCopied" style="color:var(--good);font-size:13px" aria-live="polite"></span></div>`;
+  h += '<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>List for</th><th>Triads</th><th>Numbers</th><th>Came (within 14 days, any state)</th><th>Status</th></tr></thead><tbody>' + rows.map(({L, C}) => {
+    const came = C.came.map(x => `<span class="mono" data-look="${x.n}" style="cursor:pointer;color:var(--accent);font-weight:600;letter-spacing:.05em">${x.n}</span> ${esc(x.c.toUpperCase())} ${fmtShort(x.d)}`).join(' · ');
+    return `<tr${C.came.length ? ' class="top"' : ''}><td>${fmtShort(L.T)}</td><td class="mono" style="font-size:12px">${L.spec.show.join(' ')}</td><td><details><summary style="cursor:pointer">${L.F.size} numbers</summary><div style="font-size:12px;line-height:1.6">${[...L.F.values()].map(v => `<span class="mono" data-look="${v.n}" style="cursor:pointer">${v.k}</span> <span style="color:var(--muted)">${esc(v.from[0])}</span>`).join('<br>')}</div></details></td><td>${came || '<span style="color:var(--muted)">none yet</span>'}</td><td style="font-size:12px;color:var(--muted)">${C.done ? 'closed' : C.daysIn ? `open · day ${C.daysIn} of ${GW_OPEN}` : 'starts ' + fmtShort(L.T)} · chance ${C.e.toFixed(2)}</td></tr>`; }).join('') + '</tbody></table></div>';
+  // live test
+  let H = 0, E = 0, nL = 0, open = 0;
+  for(const T of DATES.filter(d => d >= GW_LIVE)){ const L = gwList(T); if(!L) continue; const C = gwCheck(L); if(!C.done){ open++; continue; } nL++; H += new Set(C.came.map(x => srt(x.n))).size; E += C.e; }
+  h += `<div class="tiles" style="margin-top:10px"><div class="tile"><div class="k">Live test from ${fmtShort(GW_LIVE)}: list numbers that came within ${GW_OPEN} days</div><div class="v">${H} / ${E.toFixed(1)}</div><div class="k">${nL} finished list${nL === 1 ? '' : 's'} · ${open} still open · came vs chance${E > 0 ? ' · ' + (H / E).toFixed(2) + '×' : ''}</div></div></div>`;
+  h += `<div class="note">A list number counts once if it comes (any order) in any state within ${GW_OPEN} days. "Chance" is how many of that list's numbers would come in those same draws at random. Look back on every day since 2021: within 1 day 1.00&times;, 3 days 1.03&times;, 7 days 1.00&times;, 14 days 1.02&times; &mdash; but the same lists checked a month later did as well (0.92&ndash;1.09&times;), so a longer wait catches more numbers without any timing edge. A list of about 15 numbers left open two weeks catches something roughly half the time, whatever made it. The live tile counts lists from ${fmtShort(GW_LIVE)} on, once their ${GW_OPEN} days are up.</div>`;
+  $('gwOut').innerHTML = h; GW_LAST = [...nxt.L.F.values()].map(v => v.k);
+}
+let GW_LAST = [];
+document.addEventListener('click', e => { if(e.target.closest('[data-gwcopy]')) syCopy(GW_LAST.join(' '), 'gwCopied', GW_LAST.length + ' numbers'); });
+(function(){ const base = renderAll; renderAll = function(){ base(); try{ renderGW(); }catch(err){ console.error(err); if($('gwOut')) $('gwOut').innerHTML = '<div class="empty">This watch could not load.</div>'; } }; })();
