@@ -1551,7 +1551,16 @@ function dspNear4(iso, states){
 }
 
 /* ===== Master Grid System, Pick 4 (replaces the earlier grid tab: no flip grid, corners or rundown keys) ===== */
-window.GRID_CFG = { N:4, top:15, seq:() => SEQ, name:c => (typeof P4NAMES !== 'undefined' && P4NAMES[c]) || nm(c), look:n => { useSeed(n); showTab('grand'); }, note:'Tapping a number sends it to 100 Grand as the seed.' };
+const GR_HOTC = new Map();
+window.GRID_CFG = { N:4, top:15, seq:() => SEQ, name:c => (typeof P4NAMES !== 'undefined' && P4NAMES[c]) || nm(c), look:n => { useSeed(n); showTab('grand'); }, today:() => todayCT(), note:'Tapping a number sends it to 100 Grand as the seed.',
+  hotNow:(D, st) => { const key = D+'|'+st+'|'+DATES.length+'|'+Object.values(SEQ).reduce((a,b) => a+b.length, 0); if(GR_HOTC.has(key)) return GR_HOTC.get(key);
+    const M = new Map(), add = (b, l) => { if(!M.has(b)) M.set(b, new Set()); M.get(b).add(l); };
+    const rk = Object.keys(REGION4).find(k => REGION4[k].states.includes(st)), reg = rk ? REGION4[rk].states.filter(c => SEQ[c]) : Object.keys(SEQ);
+    try{ hotPicks(reg, D, 7, 2, dsYearMode(), false, D).slice(0,12).forEach(r => add(r.b, 'Hottest '+(rk ? REGION4[rk].name : 'all states'))); }catch(e){}
+    try{ hotPicks([st], D, 7, 2, dsYearMode(), false, D).slice(0,12).forEach(r => add(r.b, 'Hottest '+nm(st))); }catch(e){}
+    const sel = document.getElementById('dsGroup'), keep = sel ? sel.value : null;
+    for(const [mode, lab] of [['pair','date sum pairs'],['last','last digit pairs']]){ if(sel) sel.value = mode; try{ dspHot4(D, reg, 12).slice(0,12).forEach(r => add(r.b, lab)); }catch(e){} }
+    if(sel) sel.value = keep; GR_HOTC.set(key, M); return M; } };
 
 /* ===== Master Grid System (Pick 3 / Pick 4 / Pick 5) — Marcus's official rules, Nov 26 2026 =====
    Base grid: seed on the main diagonal. Default fill = RING fill (Marcus, Nov 26: all three games fill the same way):
@@ -1607,13 +1616,13 @@ function seqOf(c){
 }
 function todayISO(){ try{ return new Date().toLocaleDateString('en-CA', {timeZone:'America/New_York'}); }catch(e){ return new Date().toISOString().slice(0,10); } }
 /* state boosts from that state's last 30 draws */
-function boosts(c){
-  const S = c ? seqOf(c).slice(-30) : [], cnt = Array(10).fill(0), lastIx = Array(10).fill(-1), pc = {};
+function boosts(c, upto, dayISO){
+  const all = c ? seqOf(c) : [], S = (upto != null ? all.slice(0, upto+1) : all).slice(-30), cnt = Array(10).fill(0), lastIx = Array(10).fill(-1), pc = {};
   S.forEach((x, i) => { const ds = [...new Set(x.n.split('').map(Number))]; ds.forEach(d => { cnt[d]++; lastIx[d] = i; });
     for(let a = 0; a < ds.length; a++) for(let b = a+1; b < ds.length; b++){ const k = [ds[a],ds[b]].sort().join(''); pc[k] = (pc[k]||0) + 1; } });
   const hot = S.length ? [0,1,2,3,4,5,6,7,8,9].sort((a,b) => cnt[b]-cnt[a] || a-b).slice(0,3) : [];
   const due = S.length ? [0,1,2,3,4,5,6,7,8,9].sort((a,b) => lastIx[a]-lastIx[b] || a-b).slice(0,2) : [];
-  const day = +todayISO().slice(8,10), dd = day % 10, date = [dd, MIR(dd)];
+  const day = +(dayISO || todayISO()).slice(8,10), dd = day % 10, date = [dd, MIR(dd)];
   const pairs = Object.entries(pc).filter(e => e[1] > 0).sort((a,b) => b[1]-a[1] || (a[0] < b[0] ? -1 : 1)).slice(0,5).map(e => e[0]);
   return {hot, due, date, pairs, nDraws:S.length, dd};
 }
@@ -1691,24 +1700,64 @@ function render(){
   }
   G = build(base, B, !!st);
   /* came since the seed draw, same state (box) */
-  const came = {};
+  const came = {}, cameEl = {};
   if(since){ const after = x => x.d > since.d || (x.d === since.d && x.s === 'e' && since.s === 'm');
-    seq.forEach(x => { if(after(x)) (came[srtN(x.n)] = came[srtN(x.n)] || []).push(x.n+' '+x.d.slice(5)); }); }
+    seq.forEach(x => { if(after(x)) (came[srtN(x.n)] = came[srtN(x.n)] || []).push(x.n+' '+x.d.slice(5)); });
+    const S = C.seq(); for(const c in S){ if(c === st) continue; for(const x of S[c]) if(x.d > since.d) (cameEl[srtN(x.n)] = cameEl[srtN(x.n)] || []).push(C.name(c)+' '+x.n+' '+x.d.slice(5)); } }
   const tagsHTML = e => e.tags.map(t => '<i class="grb grb'+t[0]+'">'+t[0]+(t[1]>1?'<small>'+t[1]+'</small>':'')+'</i>').join('');
-  const card = (e, i) => { const cs = came[srtN(e.n)];
+  const card = (e, i) => { const cs = came[srtN(e.n)], ce = cameEl[srtN(e.n)];
     return '<button type="button" class="grpick'+(cs?' came':'')+'" style="border-left-color:'+TIERCOL[e.tier]+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+
       '<span class="grn">'+e.n+'</span><span class="grtags"><i class="grb" style="background:'+(e.mirror?'#1D6B3F':'#8A8577')+'">'+(e.mirror?'MIRROR':'BASE')+'</i>'+tagsHTML(e)+'</span>'+
-      '<span class="grst">#'+(i+1)+' '+TIERNAME[e.tier]+' &middot; '+e.from.join(', ')+(cs ? ' &middot; <b>came: '+cs.slice(0,2).join(', ')+'</b>' : since ? ' &middot; not yet' : '')+'</span></button>'; };
+      '<span class="grst">#'+(i+1)+' '+TIERNAME[e.tier]+' &middot; '+e.from.join(', ')+(cs ? ' &middot; <b>came here: '+cs.slice(0,2).join(', ')+'</b>' : since ? ' &middot; not here yet' : '')+(ce ? ' &middot; <span class="grel">came elsewhere ('+ce.length+'): '+ce.slice(-2).join(', ')+'</span>' : since ? ' &middot; not elsewhere yet' : '')+'</span></button>'; };
   let h = '<div class="note" style="margin:0 0 6px">Built from '+from+'</div>';
   h += '<div style="display:flex;gap:22px;flex-wrap:wrap"><div><div class="grh">Base grid</div>'+cellHTML(G.base)+'</div><div><div class="grh">Mirror grid</div>'+cellHTML(G.mir)+'</div></div>';
   if(st) h += '<div class="note" style="margin:6px 0">Boosts for '+C.name(st)+' (last '+B.nDraws+' draws): <b>H</b> hot digits '+B.hot.join(' ')+' &middot; <b>O</b> overdue '+B.due.join(' ')+' &middot; <b>D</b> date digit '+B.date[0]+' / mirror '+B.date[1]+' &middot; <b>P</b> pairs '+B.pairs.map(p => p.split('').join('-')).join(' ')+'</div>';
   else h += '<div class="note" style="margin:6px 0">Pick a state to add its boosts (hot, overdue, pairs). <b>D</b> = today&rsquo;s date digit '+B.date[0]+' or its mirror '+B.date[1]+'.</div>';
   h += '<div class="grh">Ranked Top '+top+'</div><div class="grgrid">'+G.ranked.slice(0, top).map(card).join('')+'</div>';
   h += '<details style="margin-top:10px"><summary style="cursor:pointer" class="grh">Full list &mdash; all '+G.all.length+' unique numbers (grid order, mirror first)</summary><div class="grfull">'+
-    G.all.map(e => '<span class="grchip'+(e.mirror?' m':'')+(came[srtN(e.n)]?' came':'')+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+e.n+'<small>'+(e.mirror?'M':'B')+'</small></span>').join('')+'</div></details>';
-  h += '<div class="note" style="margin-top:8px">Rank order is strict: <b style="color:'+TIERCOL[1]+'">mirror diagonals</b> &rarr; <b style="color:'+TIERCOL[2]+'">numbers in both grids</b> (same box) &rarr; <b style="color:'+TIERCOL[3]+'">other mirror lines</b> &rarr; <b style="color:'+TIERCOL[4]+'">base only</b>; the state boosts only reorder numbers inside a tier. Lines used: every row, every column and both diagonals &mdash; nothing else. Blue cells = main diagonal, orange = anti-diagonal. Red = came in this state since the seed draw (any order). Tap a number to look it up.'+(C.note ? ' '+C.note : '')+'</div>';
+    G.all.map(e => '<span class="grchip'+(e.mirror?' m':'')+(came[srtN(e.n)]?' came':cameEl[srtN(e.n)]?' el':'')+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+e.n+'<small>'+(e.mirror?'M':'B')+'</small></span>').join('')+'</div></details>';
+  h += '<div class="note" style="margin-top:8px">Rank order is strict: <b style="color:'+TIERCOL[1]+'">mirror diagonals</b> &rarr; <b style="color:'+TIERCOL[2]+'">numbers in both grids</b> (same box) &rarr; <b style="color:'+TIERCOL[3]+'">other mirror lines</b> &rarr; <b style="color:'+TIERCOL[4]+'">base only</b>; the state boosts only reorder numbers inside a tier. Lines used: every row, every column and both diagonals &mdash; nothing else. Blue cells = main diagonal, orange = anti-diagonal. Red = came in this state since the seed draw (any order); purple = came in another state since then. Tap a number to look it up.'+(C.note ? ' '+C.note : '')+'</div>';
+  if(C.hotNow && st) h += '<div class="grh" style="margin-top:16px">Still due on the sum &mdash; '+C.name(st)+'</div><div id="grDue">'+dueHTML(st)+'</div><div id="grDueCheck"><button type="button" class="ghost" id="grDueBtn">Check how this list did the last 14 days (all states)</button></div>';
   out.innerHTML = h;
+  const db = $g('grDueBtn'); if(db) db.onclick = () => dueCheck(st);
   out.querySelectorAll('[data-n]').forEach(el => el.onclick = () => { try{ C.look(el.dataset.n); }catch(e){} });
+}
+
+/* ===== Still due on the sum (Marcus, Nov 26): a grid pick from the last 14 days that has not come in ANY state since,
+   fits the day's last digit sum pairs (dd, dm, mm), and is on one of that morning's hot lists. Tested on Georgia seeds,
+   Oct 29 - Nov 25: 17 came anywhere that day or next vs 11.0 by chance (1.54x, 80 numbers) - not proven. ===== */
+const isoAddG = (d, k) => { const t = new Date(d+'T12:00:00Z'); t.setUTCDate(t.getUTCDate()+k); return t.toISOString().slice(0,10); };
+function fitsLast(b, D){ const d = +D.slice(8,10) % 10, m = MIR(d);
+  return [[d,d],[d,m],[m,m]].some(([a,c]) => { const L = b.split(''); const i = L.indexOf(String(a)); if(i < 0) return false; L.splice(i,1); return L.includes(String(c)); }); }
+function playDay(){ const S = C.seq(); let last = ''; for(const c in S) for(const x of S[c]) if(x.d > last) last = x.d; const t = C.today ? C.today() : todayISO(); return t > last ? t : last; }
+function dueFor(st, D){
+  const q = seqOf(st), S = C.seq(), top = +($g('grTop')||{}).value || C.top, out = new Map();
+  const hot = C.hotNow(D, st);
+  for(let age = 1; age <= 14; age++){
+    const G = isoAddG(D, -age); let idx = -1; for(let i = q.length-1; i >= 0; i--) if(q[i].d < G){ idx = i; break; } if(idx < 0) continue;
+    const seed = q[idx], R = build(grid(seed.n, ($g('grDir')||{}).value), boosts(st, idx, G), true).ranked.slice(0, top);
+    const cameSince = new Set(); for(const c in S) for(const x of S[c]) if(x.d >= G && x.d < D) cameSince.add(srtN(x.n));
+    for(const e of R){ const b = srtN(e.n); if(cameSince.has(b) || out.has(b) || !fitsLast(b, D) || !hot.has(b)) continue; out.set(b, {n:e.n, b, age, seed:seed.n, G, lists:hot.get(b)}); }
+  }
+  return [...out.values()];
+}
+function dueHTML(st){
+  let D, L; try{ D = playDay(); L = dueFor(st, D); }catch(e){ return '<div class="note">Could not build this list.</div>'; }
+  const d = +D.slice(8,10) % 10, m = MIR(d), pr = (''+d+d)+' '+(''+d+m)+' '+(''+m+m);
+  if(!L.length) return '<div class="note">Nothing qualifies for '+D.slice(5)+' (last digit pairs '+pr+'): no grid pick from the last 14 days is still out everywhere, fits the sum, and is on a hot list today.</div>';
+  return '<div class="note" style="margin:0 0 6px">For '+D.slice(5)+' &mdash; last digit pairs <b>'+pr+'</b>. Grid picks from '+C.name(st)+'&rsquo;s seeds in the last 14 days that have not come in any state since, fit the sum, and are on today&rsquo;s hot lists.</div><div class="grgrid">'+
+    L.map(x => '<button type="button" class="grpick" style="border-left-color:#B7791F" data-n="'+x.n+'"><span class="grn">'+x.n+'</span><span class="grst">grid from '+x.seed+' ('+x.G.slice(5)+', '+x.age+' day'+(x.age>1?'s':'')+' ago) &middot; still out everywhere &middot; on: '+[...x.lists].join(', ')+'</span></button>').join('')+'</div>';
+}
+function dueCheck(st){
+  const el = $g('grDueCheck'); if(!el) return; const S = C.seq(), D0 = playDay(), P = Math.pow(10, N), res = {h:0, e:0, n:0, hits:[]}; let k = 1;
+  const ways = b => { const f = n => n <= 1 ? 1 : n * f(n-1), c = {}; for(const ch of b) c[ch] = (c[ch]||0) + 1; return f(b.length) / Object.values(c).reduce((a,v) => a * f(v), 1); };
+  const step = () => {
+    if(k > 14){ el.innerHTML = '<div class="note">Last 14 days, '+C.name(st)+' seeds: <b>'+res.h+'</b> of '+res.n+' listed numbers came in some state that day or the next; chance would give <b>'+res.e.toFixed(1)+'</b>'+(res.e ? ' ('+(res.h/res.e).toFixed(2)+'&times;)' : '')+'.'+(res.hits.length ? ' Hits: '+res.hits.join(', ')+'.' : '')+'</div>'; return; }
+    const D = isoAddG(D0, -k), D1 = isoAddG(D, 1); el.innerHTML = '<div class="note">Checking '+D.slice(5)+'&hellip; ('+k+' of 14)</div>';
+    try{ const L = dueFor(st, D); const win = []; for(const c in S) for(const x of S[c]) if(x.d === D || x.d === D1) win.push([c, x]);
+      if(win.length) for(const x of L){ res.n++; res.e += 1 - Math.pow(1 - ways(x.b)/P, win.length); const w = win.find(([c, y]) => srtN(y.n) === x.b); if(w){ res.h++; res.hits.push(x.n+' &rarr; '+C.name(w[0])+' '+w[1].n+' '+w[1].d.slice(5)); } } }catch(e){}
+    k++; setTimeout(step, 0); };
+  setTimeout(step, 0);
 }
 const css = document.createElement('style');
 css.textContent = '.grh{font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft,#666);margin:10px 0 4px}'+
@@ -1720,6 +1769,7 @@ css.textContent = '.grh{font-family:Oswald,sans-serif;text-transform:uppercase;l
  '.grbH{background:#C0392B}.grbO{background:#6B4E16}.grbD{background:#B7791F}.grbP{background:#7A3E9D}'+
  '.grst{font-size:11px;color:var(--ink-soft,#666);line-height:1.35}.grpick.came .grst b{color:#B8362B}'+
  '.grfull{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.grchip{font-family:\'Roboto Mono\',monospace;font-size:14px;border:1px solid rgba(0,0,0,.18);border-radius:4px;padding:2px 6px;cursor:pointer}'+
+ '.grel{color:#7A3E9D;font-weight:600}.grchip.el{color:#7A3E9D;border-color:#7A3E9D}.grpick .grst .grel{color:#7A3E9D}'+
  '.grchip.m{border-color:#1D6B3F;background:rgba(29,107,63,.08)}.grchip.came{text-decoration:line-through;color:#B8362B}.grchip small{font-size:9px;margin-left:3px;opacity:.7}';
 document.head.appendChild(css);
 window.renderGridN = render; window.gridBuild = (seed, cw, st) => build(grid(seed, cw), boosts(st||''), !!st);
