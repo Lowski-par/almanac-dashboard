@@ -364,6 +364,7 @@ function syBoard(P, seedTo, top){
     put(srt(mirror(x.n)), 'Mirror');
     for(const k of syMixBoxes(x.n)) put(k, 'Mirror mixes');
     if(typeof lpKeys === 'function'){ try{ for(const k of lpKeys(x.n, 'rund').keys()) put(k, 'Lottery Post 814 rundown'); for(const k of lpKeys(x.n, 'proj').keys()) put(k, 'Lottery Post projection'); }catch(e){} }
+    if(typeof g5Spiral === 'function'){ const MG = g5Map(g5Spiral(x.n, false), g5Mir); for(const [, l] of g5Lines(MG)) put(srt(l), 'Grid 5 mirror grid'); }
   }
   if(typeof BF_RULES !== 'undefined') for(const r of BF_RULES.concat(typeof BF_MINE !== 'undefined' ? BF_MINE : [])) for(const e of bfRecent(r, seedTo, 7)){ const sd = {...e.x, fired:[]}; for(const f of r.fol) for(const k of bfFam(f)) add(k, 'Brings & follows', sd); }
   // pattern systems for the play day, from what was known by seedTo
@@ -390,7 +391,7 @@ function syBoard(P, seedTo, top){
   rows.sort((a, b) => b.n - a.n || b.st.size - a.st.size || ways(b.k) - ways(a.k) || a.k.localeCompare(b.k));
   return {rows:rows.slice(0, top || 20), seeds, fired:seeds.filter(x => x.fired.length), total:rows.length, P};
 }
-const SY_BL = {'Last digit triads':'D', 'Date sum':'S', 'Date sum pairs':'S', 'Date sum fired':'F', 'Longest-out triads':'P', 'Longest-out fours':'Q', 'Mirror Doubles':'M', 'Mirror mixes':'X', 'Mirror':'X', 'Lottery Post 814 rundown':'L', 'Lottery Post projection':'L', 'Brings & follows':'B'};
+const SY_BL = {'Last digit triads':'D', 'Date sum':'S', 'Date sum pairs':'S', 'Date sum fired':'F', 'Longest-out triads':'P', 'Longest-out fours':'Q', 'Mirror Doubles':'M', 'Mirror mixes':'X', 'Mirror':'X', 'Lottery Post 814 rundown':'L', 'Lottery Post projection':'L', 'Brings & follows':'B', 'Grid 5 mirror grid':'G'};
 let SY_BOARD_LAST = [], SY_BT = {key:null, rows:null, running:false};
 function renderBoard(){
   if(!$('boardOut')) return;
