@@ -102,6 +102,7 @@ function showTab(t){
   document.querySelectorAll('section[id^=tab-]').forEach(s => s.hidden = !(s.id === 'tab-'+t || s.dataset.with === t));
   try{ localStorage.setItem('p4tab', t); }catch(e){}
   if(t === 'log') renderHitLog();
+  if(t === 'grid') renderGrid();
 }
 function initControls(){
   const last = DATES[DATES.length-1];
@@ -109,7 +110,7 @@ function initControls(){
   const todayCT = new Date().toLocaleDateString('en-CA', { timeZone:'America/Chicago' }); const top = todayCT > last ? todayCT : last;
   for(const id of ['drewDate','sumsDate','vibesDate']){ const el = document.getElementById(id); el.min = DATES[0]; el.max = top; if(!el.value) el.value = id === 'sumsDate' ? top : last; else if(id === 'sumsDate' && el.value === last && top > last) el.value = top; }
   const sts = Object.keys(SEQ).sort((a,b) => nm(a).localeCompare(nm(b)));
-  for(const id of ['pairsState','gState','lkState','bqState','mlyState','ndState','mdState','mpState']){
+  for(const id of ['pairsState','gState','lkState','bqState','mlyState','ndState','mdState','mpState','grState']){
     const sel = document.getElementById(id);
     if(sel.options.length) continue;
     sel.innerHTML = (id!=='pairsState' ? '<option value="all">All states</option>' : '') + sts.map(c => `<option value="${c}">${nm(c)}</option>`).join('');
@@ -630,6 +631,109 @@ function renderHitLog(){
       <div class="tscroll"><table class="tbl"><tr><th>date</th><th></th><th>state</th><th>came</th><th>what was lit</th></tr>${lastHits.map(r => `<tr><td>${fmtDate(r.x.d).replace(/, \d{4}$/,'')}</td><td class="me">${r.x.s==='m'?'mid':r.x.s==='e'?'eve':''}</td><td class="stname">${nm(r.st)}</td><td>${chip(r.x.n,'gone')}</td><td class="me">${r.lit.join(' &middot; ')}</td></tr>`).join('')}</table></div>`;
     el.innerHTML = HITLOG.html; };
   el.innerHTML = '<div class="note">Building the log&hellip;</div>'; setTimeout(step, 0);
+}
+
+/* ---------- Grid Rundown (Marcus, Nov 26) ----------
+   Mirror 0-5 1-6 2-7 3-8 4-9; flip (9-complement) 0-9 1-8 2-7 3-6 4-5; all math mod 10.
+   Method B (seed): seed digits on the main diagonal; column 1 counts down 1 from the first seed digit;
+   each row counts down 1 from column 1 until the diagonal, then up 1 after it (counter-clockwise).
+   Clockwise = the same with the signs swapped. Reproduces Marcus's 5832 sheet exactly.
+   Method A: the state's last 4 draws as rows, newest on top.
+   Lines from every grid: 4 rows, 4 columns, main + anti diagonal, the four 2x2 corners and the centre 2x2.
+   Ranked for the state: on several grids, hot digits, overdue digits, date digits / date mirror,
+   hot pairs, typical sum range, plus the number type. */
+const GR_MIR = d => (d + 5) % 10, GR_FLIP = d => 9 - d;
+function grFill(seed, dir){ const s = seed.split('').map(Number), g = [[],[],[],[]], st = dir === 'cw' ? -1 : 1;
+  for(let r = 0; r < 4; r++){ g[r][r] = s[r]; if(r > 0) g[r][0] = ((s[0] - st*r) % 10 + 10) % 10;
+    for(let c = 1; c < r; c++) g[r][c] = ((g[r][c-1] - st) % 10 + 10) % 10;
+    for(let c = r + 1; c < 4; c++) g[r][c] = ((g[r][c-1] + st) % 10 + 10) % 10; }
+  return g; }
+function grLines(g){ const L = [], cell = (r,c) => g[r][c];
+  for(let r = 0; r < 4; r++) L.push({ n: g[r].join(''), how: 'row ' + (r+1) });
+  for(let c = 0; c < 4; c++) L.push({ n: [0,1,2,3].map(r => cell(r,c)).join(''), how: 'column ' + (c+1) });
+  L.push({ n: [0,1,2,3].map(i => cell(i,i)).join(''), how: 'main diagonal' });
+  L.push({ n: [0,1,2,3].map(i => cell(i,3-i)).join(''), how: 'anti-diagonal' });
+  for(const [r,c,lab] of [[0,0,'top-left 2×2'],[0,2,'top-right 2×2'],[2,0,'bottom-left 2×2'],[2,2,'bottom-right 2×2'],[1,1,'centre 2×2']])
+    L.push({ n: '' + cell(r,c) + cell(r,c+1) + cell(r+1,c) + cell(r+1,c+1), how: lab });
+  return L; }
+function grStateChanged(){ const st = document.getElementById('grState').value; const s = SEQ[st] || [];
+  const inp = document.getElementById('grSeed'); if(s.length) inp.value = s[s.length-1].n; renderGrid(); }
+function renderGrid(){
+  const el = document.getElementById('grBody'); if(!el || !DATES.length) return;
+  let st = document.getElementById('grState').value; if(!st || st === 'all'){ st = 'tx'; document.getElementById('grState').value = st; }
+  const seq = SEQ[st] || []; const seedIn = document.getElementById('grSeed');
+  if(!/^\d{4}$/.test(seedIn.value) && seq.length) seedIn.value = seq[seq.length-1].n;
+  const seed = seedIn.value, method = document.getElementById('grMethod').value;
+  const keySel = document.getElementById('grKey').value; document.getElementById('grKeyBox').style.display = keySel === 'custom' ? '' : 'none';
+  const key = keySel === 'custom' ? (document.getElementById('grKeyOwn').value || '1234') : keySel;
+  if(!/^\d{4}$/.test(seed)){ el.innerHTML = 'Type a 4-digit seed.'; return; }
+  // grids
+  let base, baseLab;
+  if(method === 'last4'){ const l4 = seq.slice(-4).reverse(); if(l4.length < 4){ el.innerHTML = 'Not enough draws for this state.'; return; }
+    base = l4.map(x => x.n.split('').map(Number)); baseLab = 'last 4 draws in ' + nm(st) + ' (newest on top): ' + l4.map(x => x.n + ' ' + x.d.slice(5) + (x.s||'')).join(', '); }
+  else { base = grFill(seed, method); baseLab = 'seed ' + seed + ' on the diagonal, ' + (method === 'cw' ? 'clockwise' : 'counter-clockwise') + ' fill'; }
+  const mir = base.map(r => r.map(GR_MIR)), flip = base.map(r => r.map(GR_FLIP));
+  const grids = [['Base', base], ['Mirror', mir]]; if(document.getElementById('grFlip').checked) grids.push(['Flip', flip]);
+  // every line, every grid
+  const lines = []; for(const [gname, g] of grids) for(const l of grLines(g)) lines.push({ ...l, grid: gname });
+  const byBox = {}; for(const l of lines){ const b = box(l.n); (byBox[b] = byBox[b] || { b, lines: [], grids: new Set() }); byBox[b].lines.push(l); byBox[b].grids.add(l.grid); }
+  // state profile: hot digits (30 days), overdue digits, hot pairs (14 days), sum range (60 days), date digits
+  const last = DATES[DATES.length-1], today = todayCT();
+  const d30 = seq.filter(x => x.d > isoAdd(last, -30)), d14 = seq.filter(x => x.d > isoAdd(last, -14)), d60 = seq.filter(x => x.d > isoAdd(last, -60));
+  const dc = Array(10).fill(0); d30.forEach(x => x.n.split('').forEach(c => dc[+c]++));
+  const hotD = [...Array(10).keys()].sort((a,b) => dc[b] - dc[a]).slice(0, 3);
+  const lastDig = Array(10).fill(null); seq.forEach(x => x.n.split('').forEach(c => lastDig[+c] = x.d));
+  const outD = [...Array(10).keys()].sort((a,b) => (lastDig[a]||'') < (lastDig[b]||'') ? -1 : (lastDig[a]||'') > (lastDig[b]||'') ? 1 : 0).slice(0, 2);
+  const pc = {}; d14.forEach(x => cof(2, x.n).forEach(p => pc[p] = (pc[p]||0) + 1));
+  const hotP = Object.keys(pc).sort((a,b) => pc[b] - pc[a]).slice(0, 5);
+  const sums = d60.map(x => x.n.split('').reduce((a,c) => a + +c, 0)).sort((a,b) => a-b);
+  const sLo = sums.length ? sums[Math.floor(sums.length*0.25)] : 0, sHi = sums.length ? sums[Math.floor(sums.length*0.75)] : 36;
+  const [, mm, dd] = today.split('-'); const dateD = new Set((+mm + '' + +dd).split('').map(Number)); const dateM = new Set([...dateD].map(GR_MIR));
+  const KN = {24:'single (24-way)',12:'double (12-way)',6:'2 doubles (6-way)',4:'triple (4-way)',1:'quad (1-way)'};
+  const came = {}; for(const x of seq) came[box(x.n)] = x;   // last time it came in this state
+  const cand = Object.values(byBox).map(o => { const dg = o.b.split('').map(Number), why = [];
+    let sc = 0;
+    if(o.grids.size >= 2){ sc += 2 * (o.grids.size - 1); why.push('on ' + [...o.grids].join(' + ')); }
+    if(o.lines.length >= 2 && o.grids.size < 2){ sc += 1; why.push(o.lines.length + ' paths'); }
+    const h = dg.filter(d => hotD.includes(d)).length; if(h){ sc += h; why.push(h + ' hot digit' + (h>1?'s':'')); }
+    const od = dg.filter(d => outD.includes(d)).length; if(od){ sc += od; why.push(od + ' overdue digit' + (od>1?'s':'')); }
+    const dm = dg.some(d => dateD.has(d)), dmm = dg.some(d => dateM.has(d)); if(dm){ sc += 1; why.push('date digit'); } if(dmm){ sc += 1; why.push('date mirror'); }
+    const hp = hotP.filter(p => cof(2, o.b).has(p)); if(hp.length){ sc += hp.length; why.push('hot pair ' + hp.map(p => p + 'xx').join(' ')); }
+    const sm = dg.reduce((a,c) => a+c, 0); if(sm >= sLo && sm <= sHi){ sc += 1; why.push('sum ' + sm + ' in range'); }
+    return { ...o, sc, why, type: KN[boxCover([o.b])], last: came[o.b] }; })
+    .sort((a,b) => b.sc - a.sc || (a.b < b.b ? -1 : 1));
+  // classic rundown with the key
+  const kd = key.split('').map(Number); const run = []; let cur = seed.split('').map(Number);
+  for(let i = 0; i < 10; i++){ run.push(cur.join('')); cur = cur.map((d, j) => (d + kd[j]) % 10); }
+  const gridHTML = (name, g) => `<div style="display:inline-block;margin:0 14px 10px 0;vertical-align:top"><div class="famh" style="margin:0 0 4px">${name} grid</div><table class="tbl" style="font-family:'Roboto Mono',monospace;font-size:18px;text-align:center">${g.map((r,ri) => '<tr>' + r.map((d,ci) => `<td style="padding:4px 9px;${ri===ci && method!=='last4' && name==='Base' ? 'outline:2px solid var(--pen);font-weight:700' : ''}">${d}</td>`).join('') + '</tr>').join('')}</table></div>`;
+  const lineList = name => lines.filter(l => l.grid === name).map(l => `<span class="chip" onclick="useSeed('${l.n}')" title="${l.how}">${l.n}<span class="mk">${l.how}</span></span>`).join('');
+  const lastTxt = c => c ? `last here ${c.n} ${c.d.slice(5)}${c.s||''}` : 'not here this year';
+  el.innerHTML = `<div class="verdict"><b>${nm(st)}</b> &middot; ${baseLab}. ${cand.length} different numbers (boxed) from ${lines.length} lines.</div>
+    <div class="note" style="margin:0 0 8px">For ${nm(st)}: hot digits (30 days) <b>${hotD.join(' ')}</b> &middot; overdue digits <b>${outD.join(' ')}</b> &middot; hot pairs (14 days) <b>${hotP.map(p => p+'xx').join(' ')}</b> &middot; usual sum ${sLo}&ndash;${sHi} &middot; today ${+mm}/${+dd}: date digits <b>${[...dateD].join(' ')}</b>, mirror <b>${[...dateM].join(' ')}</b></div>
+    <div>${grids.map(([n,g]) => gridHTML(n, g)).join('')}</div>
+    <div class="famh" style="margin-top:6px">Strongest candidates for ${nm(st)} (red = top 5)</div>
+    <div class="tscroll"><table class="tbl"><tr><th>#</th><th>number</th><th>type</th><th>score</th><th>why</th><th>where it came from</th><th></th></tr>${cand.slice(0, 15).map((c,i) => `<tr><td class="me">${i+1}</td><td>${chip(c.lines[0].n, i<5?'hotr':i<10?'warmo':'')}</td><td class="me">${c.type}</td><td style="font-weight:700">${c.sc}</td><td class="me">${c.why.join(' &middot; ')}</td><td class="me">${c.lines.map(l => l.grid + ' ' + l.how).join(', ')}</td><td class="me">${lastTxt(c.last)}</td></tr>`).join('')}</table></div>
+    <div class="famh" style="margin-top:12px">Classic rundown (key +${kd.join('+')})</div>
+    <div class="dsrow">${run.map(n => `<span class="chip" onclick="useSeed('${n}')">${n}</span>`).join('')}</div>
+    <details class="dslist" style="margin-top:10px"><summary><b>Every line from every grid</b> (${lines.length})</summary>${grids.map(([n]) => `<div class="famh" style="margin-top:6px">${n} grid</div><div class="dsrow">${lineList(n)}</div>`).join('')}</details>
+    <details class="dslist"><summary><b>Complete list</b> &mdash; every different number the grids produced (${cand.length})</summary><div class="dsrow">${cand.map(c => `<span class="chip" onclick="useSeed('${c.lines[0].n}')" title="${c.type} · score ${c.sc}">${c.lines[0].n}</span>`).join('')}</div></details>
+    <div id="grScore" class="note" style="margin-top:10px"><button class="ghost" onclick="grTest()">How have these grids done? &mdash; check the last 30 days</button></div>
+    <div class="note">Mirror 0&harr;5 1&harr;6 2&harr;7 3&harr;8 4&harr;9 &middot; flip 0&harr;9 1&harr;8 2&harr;7 3&harr;6 4&harr;5 &middot; all adding keeps only the ones digit. Seed fill: column 1 counts down from the first seed digit; each row counts down until the boxed diagonal digit, then up after it (clockwise swaps the directions). Score: +2 for each extra grid it shows up on, +1 per hot digit, overdue digit, hot pair, date digit, date mirror, and a sum in the state&rsquo;s usual range. Tap any number to open it on 100 Grand.</div>`;
+}
+// Backtest: every state, last 30 days, after each draw build the grids from that draw (seed method chosen)
+// or from the last 4 draws, and check whether any grid number came in that state in its next 4 draws.
+function grTest(){
+  const out = document.getElementById('grScore'); if(!out) return;
+  const method = document.getElementById('grMethod').value, useFlip = document.getElementById('grFlip').checked;
+  const last = DATES[DATES.length-1], start = isoAdd(last, -30); let n = 0, hit = 0, exp = 0, topHit = 0, topExp = 0;
+  for(const st of Object.keys(SEQ)){ const s = SEQ[st] || [];
+    for(let i = 3; i < s.length - 4; i++){ if(s[i].d < start) continue;
+      const base = method === 'last4' ? s.slice(i-3, i+1).reverse().map(x => x.n.split('').map(Number)) : grFill(s[i].n, method);
+      const gs = [base, base.map(r => r.map(GR_MIR))]; if(useFlip) gs.push(base.map(r => r.map(GR_FLIP)));
+      const boxes = new Set(); gs.forEach(g => grLines(g).forEach(l => boxes.add(box(l.n))));
+      const next = s.slice(i+1, i+5).map(x => box(x.n)); const cov = [...boxes].reduce((a,b) => a + boxCover([b]), 0) / 10000;
+      n++; if(next.some(b => boxes.has(b))) hit++; exp += 1 - Math.pow(1 - cov, next.length); } }
+  out.innerHTML = `<b>Last 30 days, every state:</b> after ${n.toLocaleString()} draws we built the grids (${method === 'last4' ? 'last 4 draws' : 'seed = that draw, ' + (method === 'cw' ? 'clockwise' : 'counter-clockwise')}${useFlip ? ', with flip' : ''}) and checked the next 4 draws in that state. A grid number came <b>${hit}</b> times &mdash; chance would give about <b>${exp.toFixed(0)}</b> (${exp ? (hit/exp).toFixed(2) : '0'}&times;).`;
 }
 
 const GCACHE = new Map();

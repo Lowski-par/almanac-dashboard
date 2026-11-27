@@ -47,6 +47,7 @@
     <button class="ghost" data-tab="mly" onclick="showTab('mly')">My Lil Yeah</button>
     <button class="ghost" data-tab="need" onclick="showTab('need')">State Specific BAAABY</button>
     <button class="ghost" data-tab="mirr" onclick="showTab('mirr')">Mirror Doubles</button>
+    <button class="ghost" data-tab="grid" onclick="showTab('grid')">Grid Rundown</button>
     <button class="ghost" data-tab="log" onclick="showTab('log')">Hit Log</button>
   </div>
 
@@ -224,6 +225,18 @@
     <div id="needWhere" class="note"></div>
     <details style="margin-top:14px"><summary style="cursor:pointer;font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft)">Does pull work? &mdash; scorecard for this state</summary><div id="needScore" class="note">Open to compute.</div></details>
     <div class="note"><b>Pull</b> = how many relatives of a number have fallen in this state in the window, counting all four systems: <b>G</b> seeds drawn here whose 100 Grand list holds it, <b>Q</b> Big Quad relatives of its set that fell here, <b>Y</b> Family Tree relatives that fell here, <b>S</b> +1 if it is in today&rsquo;s Date Sum group. Numbers that already came in the window are left off the &ldquo;due&rdquo; list. Chance is shown beside every count: a number with many relatives is usually a single (24 ways) and would be expected more often anyway.</div>
+  </section>
+  <section id="tab-grid" class="card" hidden>
+    <h2>Grid Rundown <span class="count">4&times;4 grids, mirror &amp; flip, every line &mdash; ranked for the state</span></h2>
+    <div class="controls">
+      <label>State <select id="grState" onchange="grStateChanged()"></select></label>
+      <label>Build from <select id="grMethod" onchange="renderGrid()"><option value="ccw" selected>seed &mdash; counter-clockwise fill</option><option value="cw">seed &mdash; clockwise fill</option><option value="last4">last 4 draws (rows)</option></select></label>
+      <label>Seed <input id="grSeed" maxlength="4" inputmode="numeric" autocomplete="off" oninput="if(this.value.length===4||!this.value)renderGrid()" style="width:5.5em;font-family:'Roboto Mono',monospace;font-size:16px"></label>
+      <label>Rundown key <select id="grKey" onchange="renderGrid()"><option value="1234" selected>+1+2+3+4</option><option value="1111">+1+1+1+1</option><option value="6428">+6+4+2+8</option><option value="custom">my own key&hellip;</option></select></label>
+      <label id="grKeyBox" style="display:none">Key <input id="grKeyOwn" maxlength="4" inputmode="numeric" oninput="if(this.value.length===4)renderGrid()" style="width:5em;font-family:'Roboto Mono',monospace"></label>
+      <label><input type="checkbox" id="grFlip" checked onchange="renderGrid()"> flip grid</label>
+    </div>
+    <div id="grBody" class="note" style="margin-top:10px"></div>
   </section>
   <section id="tab-log" class="card" hidden>
     <h2>Hit Log <span class="count">is each signal actually helping?</span></h2>
