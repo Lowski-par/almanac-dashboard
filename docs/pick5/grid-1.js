@@ -2,9 +2,10 @@
    Method B (single seed): the seed goes down the diagonal; each ring counts +1 counter-clockwise (or clockwise) from its
    bottom-right diagonal cell, skipping the diagonal. Checked against his sheet (LA 55453, Nov 16) and the app grid (mirror 62617).
    Method A: the state's last 5 draws as rows, newest on top.
-   Mirror grid: 0↔5 1↔6 2↔7 3↔8 4↔9 · Flip grid: 0↔9 1↔8 2↔7 3↔6 4↔5.
+   Master Grid System (Marcus, Nov 26): two grids only, Base and Mirror (0↔5 1↔6 2↔7 3↔8 4↔9).
    Lines (Marcus, Nov 26: clean, definable lines only until exact cell paths are defined): 5 rows, 5 columns, the diagonal, the anti-diagonal.
-   Ranking: Mirror lines first, Base second, Flip last; a number on both Base and Mirror gets a boost; hot digits, overdue spots and the date digit only break ties.
+   Ranking, strict order: 1 the Mirror grid's two diagonals, 2 numbers on both Base and Mirror (any order), 3 the other Mirror lines, 4 Base-only lines.
+   Inside each tier the state filters boost: hot digits, overdue spots, date digit or its mirror, strong recent pairs.
    Uses SEQ, CODES, DATES, srt, ways, addInc, esc, nm, fmtShort, fmtD, slotName, store, $ (app-1.js), syPlayDay, syLastDraw,
    syStates, syCame, syCopy, syShift, syDsum, syRoot, syHas, syUniq, sySubs (sys-1.js). */
 'use strict';
@@ -33,7 +34,7 @@ function g5Lines(G){
 }
 function g5Grids(method, seed, last5){
   const base = method === 'A' ? g5Rows(last5) : g5Spiral(seed, method === 'Bcw');
-  return {Base:base, Mirror:g5Map(base, g5Mir), Flip:g5Map(base, g5Flip)};
+  return {Base:base, Mirror:g5Map(base, g5Mir)};
 }
 function g5Rundown(seed, key){ const out = [seed]; let cur = seed; for(let k = 1; k <= 9; k++){ cur = addInc(cur, key, 1); out.push(cur); } return out; }
 
@@ -48,29 +49,32 @@ function g5Stats(sq, idx, playDay){
     for(let j = idx; j >= 0 && seen.size < 10; j--){ const d = +sq[j].n[p]; if(!seen.has(d)){ seen.add(d); last = d; } }
     if(seen.size < 10){ for(let d = 0; d < 10; d++) if(!seen.has(d)){ last = d; break; } }
     over.push(last); }
-  const tri = new Set(); for(const x of sq.slice(Math.max(0, idx - 9), idx + 1)) for(const t of sySubs(x.n, 3)) tri.add(t);
+  const pc = {}; for(const x of sq.slice(Math.max(0, idx - 29), idx + 1)) for(const p of sySubs(x.n, 2)) pc[p] = (pc[p] || 0) + 1;
+  const pairs = Object.keys(pc).sort((a, b) => pc[b] - pc[a] || a.localeCompare(b)).slice(0, 5);
   const L = +playDay.slice(-1), M = (L + 5) % 10;
-  return {hot, hotRoot, over, tri, L, M};
+  return {hot, hotRoot, over, pairs, L, M};
 }
+const G5_TIER = ['Mirror diagonal', 'On both grids', 'Mirror line', 'Base only'];
 function g5Rank(G, S, ownBox){
   const by = new Map();                      // box -> candidate
   for(const [gname, grid] of Object.entries(G)) for(const [lab, n] of g5Lines(grid)){
     const k = srt(n); if(k === ownBox) continue;
-    let e = by.get(k); if(!e){ e = {k, n, grids:new Set(), lines:[]}; by.set(k, e); }
+    let e = by.get(k); if(!e){ e = {k, n, grids:new Set(), lines:[], mdiag:false}; by.set(k, e); }
+    if(gname === 'Mirror' && !e.grids.has('Mirror')) e.n = n;             // show the mirror reading
+    if(gname === 'Mirror' && /diagonal/.test(lab)){ e.mdiag = true; e.n = n; }
     e.grids.add(gname); e.lines.push(gname + ' ' + lab);
   }
   for(const e of by.values()){
-    const why = [], n = e.n; let s = 0;
-    if(e.grids.has('Mirror')){ s += 3; why.push('mirror'); }
-    if(e.grids.has('Base')){ s += 1; why.push('base'); }
-    if(e.grids.has('Flip')){ s += 0.5; why.push('flip'); }
-    if(e.grids.has('Mirror') && e.grids.has('Base')){ s += 2; why.push('base + mirror boost'); }
-    const hotIn = S.hot.filter(d => n.includes(String(d))); if(hotIn.length){ s += 0.25 * hotIn.length; why.push('hot ' + hotIn.join('')); }
-    const ov = [...n].filter((d, p) => +d === S.over[p]).length; if(ov){ s += 0.5 * ov; why.push(ov + ' overdue spot' + (ov > 1 ? 's' : '')); }
-    if(n.includes(String(S.L)) || n.includes(String(S.M))){ s += 0.5; why.push('date ' + S.L + '/' + S.M); }
-    e.score = s; e.why = why;
+    const n = e.n, why = [];
+    e.tier = e.mdiag ? 0 : (e.grids.has('Mirror') && e.grids.has('Base')) ? 1 : e.grids.has('Mirror') ? 2 : 3;
+    let b = 0;
+    const hotIn = S.hot.filter(d => n.includes(String(d))); if(hotIn.length){ b += hotIn.length; why.push('hot ' + hotIn.join('')); }
+    const ov = [...n].filter((d, p) => +d === S.over[p]).length; if(ov){ b += ov; why.push(ov + ' overdue spot' + (ov > 1 ? 's' : '')); }
+    if(n.includes(String(S.L)) || n.includes(String(S.M))){ b += 1; why.push('date ' + S.L + '/' + S.M); }
+    const hp = S.pairs.filter(p => syHas(n, p)); if(hp.length){ b += hp.length; why.push('pair ' + hp.map(p => p + 'xxx').join(' ')); }
+    e.boost = b; e.score = (3 - e.tier) * 100 + b; e.why = why;
   }
-  return [...by.values()].sort((a, b) => b.score - a.score || b.grids.size - a.grids.size || ways(b.k) - ways(a.k) || a.k.localeCompare(b.k));
+  return [...by.values()].sort((a, b) => a.tier - b.tier || b.boost - a.boost || ways(b.k) - ways(a.k) || a.k.localeCompare(b.k));
 }
 
 /* ── render ── */
@@ -94,7 +98,7 @@ function renderG5(){
   if(method === 'A' && last5.length < 5){ $('g5Out').innerHTML = '<div class="empty">This state needs 5 draws for Method A.</div>'; return; }
   const S = g5Stats(sq, idx, asOf), G = g5Grids(method, seed, last5), ranked = g5Rank(G, S, method === 'A' ? null : srt(seed));
   const src = typed.length === 5 ? null : {...sq[idx], c};
-  let h = `<div class="play"><b>${method === 'A' ? last5[0] : seed}</b><small>${method === 'A' ? `${esc(nm(c))}'s last 5 draws as rows, newest on top (${last5.join(' · ')}).` : (src ? `${esc(nm(c))} ${esc(slotName(c, src.s))} ${fmtD(src.d)} on the diagonal` : 'Your seed on the diagonal') + `, every ring counted +1 ${method === 'Bcw' ? 'clockwise' : 'counter-clockwise'} from its bottom-right corner.`} ${esc(nm(c))} right now: hot digits ${S.hot.join(' ')}, hot root ${S.hotRoot}, gone longest by position ${S.over.join(' ')}. Date digit ${S.L}, mirror ${S.M}.</small></div>`;
+  let h = `<div class="play"><b>${method === 'A' ? last5[0] : seed}</b><small>${method === 'A' ? `${esc(nm(c))}'s last 5 draws as rows, newest on top (${last5.join(' · ')}).` : (src ? `${esc(nm(c))} ${esc(slotName(c, src.s))} ${fmtD(src.d)} on the diagonal` : 'Your seed on the diagonal') + `, every ring counted +1 ${method === 'Bcw' ? 'clockwise' : 'counter-clockwise'} from its bottom-right corner.`} ${esc(nm(c))} right now: hot digits ${S.hot.join(' ')}, gone longest by position ${S.over.join(' ')}, strong pairs ${S.pairs.map(p => p + 'xxx').join(' ')}. Date digit ${S.L}, mirror ${S.M}.</small></div>`;
   // rundown
   const rd = g5Rundown(seed, key);
   h += `<div class="sub-h">Classic rundown · ${esc(G5_KEYS[key] || key)}</div><div class="chips">` + rd.map((n, i) => `<span class="chip${i ? '' : ' hot'}" data-look="${n}">${n}</span>`).join('') + '</div>';
@@ -102,13 +106,14 @@ function renderG5(){
   h += '<div class="g5wrap">' + Object.entries(G).map(([nmG, g]) => g5GridHTML(nmG, g, S, method !== 'A')).join('') + '</div>';
   h += '<div class="legend"><span><i style="background:var(--navy)"></i>seed on the diagonal</span><span><i style="background:#F7C6DD"></i>date digit or its mirror</span><span><i style="background:var(--accent);border-radius:50%"></i>dot = digit gone longest in that position</span></div>';
   // ranked
-  const top = ranked.slice(0, 10);
-  h += `<div class="sub-h">Strongest candidates in ${esc(nm(c))}</div><div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>#</th><th>Number</th><th>Score</th><th>Why</th><th>Since</th></tr></thead><tbody>` +
+  const TOPN = +($('g5Top').value || 10), top = ranked.slice(0, TOPN);
+  h += `<div class="sub-h">Strongest candidates in ${esc(nm(c))}</div><div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>#</th><th>Number</th><th>Tier</th><th>Boost</th><th>Why</th><th>Since</th></tr></thead><tbody>` +
     top.map((e, i) => { const came = src ? syCame(e.k, src, c) : null;
-      return `<tr${i < 3 ? ' class="top"' : ''}><td class="num">${i + 1}</td><td class="n"><span class="chip" data-look="${e.n}" style="border:0;padding:0;background:none">${e.n}</span><span class="tag">${ways(e.k)}w</span></td><td class="num">${e.score.toFixed(1)}</td><td>${esc(e.why.join(' · '))}<div style="color:var(--muted);font-size:12px">${esc(e.lines.join(', '))}</div></td><td>${came ? `<span class="mk x">✕</span> ${came.n} ${fmtShort(came.d)}` : (src ? '<span class="mk ok">✓</span> not yet' : '')}</td></tr>`; }).join('') + '</tbody></table></div>';
-  h += `<div class="ctl" style="margin-top:8px"><button class="btn primary" type="button" data-g5copy="top">Copy the top 10</button><button class="btn" type="button" data-g5copy="all">Copy all ${ranked.length} unique numbers</button><span id="g5Copied" style="color:var(--good);font-size:13px" aria-live="polite"></span></div>`;
+      return `<tr${i < 3 ? ' class="top"' : ''}><td class="num">${i + 1}</td><td class="n"><span class="chip" data-look="${e.n}" style="border:0;padding:0;background:none">${e.n}</span><span class="tag">${ways(e.k)}w</span></td><td>${e.grids.has('Mirror') ? '<span class="g5m">MIRROR</span> ' : ''}${esc(G5_TIER[e.tier])}</td><td class="num">+${e.boost}</td><td>${esc(e.why.join(' · ') || '—')}<div style="color:var(--muted);font-size:12px">${esc(e.lines.join(', '))}</div></td><td>${came ? `<span class="mk x">✕</span> ${came.n} ${fmtShort(came.d)}` : (src ? '<span class="mk ok">✓</span> not yet' : '')}</td></tr>`; }).join('') + '</tbody></table></div>';
+  h += `<div class="ctl" style="margin-top:8px"><button class="btn primary" type="button" data-g5copy="top">Copy the top ${top.length}</button><button class="btn" type="button" data-g5copy="all">Copy all ${ranked.length} unique numbers</button><span id="g5Copied" style="color:var(--good);font-size:13px" aria-live="polite"></span></div>`;
   // complete list by grid
-  h += '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">Every line from every grid</summary><div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>Line</th>' + Object.keys(G).map(k => `<th>${k}</th>`).join('') + '</tr></thead><tbody>' +
+  h += `<div class="sub-h">Every unique number (${ranked.length}) · <span class="g5m">MIRROR</span> = came from the Mirror grid</div><div class="chips">` + ranked.map(e => `<span class="chip${e.grids.has('Mirror') ? ' hot' : ''}" data-look="${e.n}">${e.n}${e.grids.has('Mirror') ? '<small>mirror</small>' : ''}</span>`).join('') + '</div>';
+  h += '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">Every line from both grids</summary><div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>Line</th>' + Object.keys(G).map(k => `<th>${k}</th>`).join('') + '</tr></thead><tbody>' +
     g5Lines(G.Base).map(([lab], i) => `<tr><td>${lab}</td>` + Object.values(G).map(g => { const n = g5Lines(g)[i][1]; return `<td class="n" style="font-size:14px"><span data-look="${n}" style="cursor:pointer">${n}</span></td>`; }).join('') + '</tr>').join('') + '</tbody></table></div></details>';
   $('g5Out').innerHTML = h; G5_LAST = {all:ranked.map(e => e.n), top:top.map(e => e.n)};
   g5Card();
@@ -123,7 +128,7 @@ function g5Card(){
   if(G5_CARD.key === key && G5_CARD.R){ g5CardShow(); return; }
   if(G5_CARD.run === key) return;
   G5_CARD = {key, R:null, run:key};
-  const R = {Base:[0,0,0], Mirror:[0,0,0], Flip:[0,0,0], 'All three':[0,0,0], 'Top 10 ranked':[0,0,0], live:[0,0,0], liveTop:[0,0,0]};
+  const R = {Base:[0,0,0], Mirror:[0,0,0], 'Both grids':[0,0,0], 'Top 10 ranked':[0,0,0], live:[0,0,0], liveTop:[0,0,0]};
   const jobs = []; for(const c of syStates()){ const sq = SEQ[c]; for(let i = 4; i < sq.length - 1; i++) jobs.push([c, i]); }
   let j = 0;
   const step = () => {
@@ -134,7 +139,7 @@ function g5Card(){
       const put = (k, B) => { let sh = 0; for(const b of B) sh += ways(b); R[k][0] += B.has(nxt) ? 1 : 0; R[k][1] += sh / 1e5; R[k][2]++; };
       const all = new Set();
       for(const [gn, g] of Object.entries(G)){ const B = new Set(g5Lines(g).map(l => srt(l[1]))); B.delete(own); put(gn, B); B.forEach(b => all.add(b)); }
-      put('All three', all);
+      put('Both grids', all);
       const isLive = x.d >= G5_LIVE;
       if(i >= sq.length - 400 || isLive){ const S = g5Stats(sq, i, sq[i + 1].d); const B = new Set(g5Rank(G, S, own).slice(0, 10).map(e => e.k)); if(i >= sq.length - 400) put('Top 10 ranked', B); if(isLive) put('liveTop', B); }
       if(isLive){ const B = new Set(g5Lines(G.Mirror).map(l => srt(l[1]))); B.delete(own); put('live', B); }
@@ -151,15 +156,15 @@ function g5CardShow(msg){
   const tile = (k, a) => `<div class="tile"><div class="k">${k}</div><div class="v">${a[0]} / ${a[1].toFixed(1)}</div><div class="k">${a[2]} of ${G5_REVIEW}+ draws graded${a[1] > 0 ? ' · ' + (a[0] / a[1]).toFixed(2) + '×' : ''}</div></div>`;
   let h = `<div class="tiles">${tile('Live test · mirror grid lines', R.live)}${tile('Live test · ranked top 10', R.liveTop)}</div>`;
   h += `<div class="note" style="margin:0 0 10px">The live test counts only draws from ${fmtShort(G5_LIVE)}, 2026 on: each draw's grid, then that state's next draw. Review it after ${G5_REVIEW}–200 graded draws${R.live[2] >= G5_REVIEW ? ' <b>— ready to review now</b>' : ` (${Math.max(0, G5_REVIEW - R.live[2])} to go)`}. The table below is the look back at every draw before that.</div>`;
-  h += '<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>Grid (Method B), next draw in the same state, box</th><th>Came / chance</th></tr></thead><tbody>' +
-    ['Base', 'Mirror', 'Flip', 'All three', 'Top 10 ranked'].map(k => `<tr${k === 'Mirror' ? ' class="top"' : ''}><td>${k}${k === 'Top 10 ranked' ? ' <span class="tag">last 400 draws per state</span>' : ''}</td>${cell(R[k])}</tr>`).join('') + '</tbody></table></div>';
+  h += '<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>Grid (seed on the diagonal), next draw in the same state, box</th><th>Came / chance</th></tr></thead><tbody>' +
+    ['Base', 'Mirror', 'Both grids', 'Top 10 ranked'].map(k => `<tr${k === 'Mirror' ? ' class="top"' : ''}><td>${k}${k === 'Top 10 ranked' ? ' <span class="tag">last 400 draws per state</span>' : ''}</td>${cell(R[k])}</tr>`).join('') + '</tbody></table></div>';
   if(msg) h += `<div class="empty">${esc(msg)}</div>`;
   h += '<div class="note">Every draw on file was put on the diagonal and its rows, columns, diagonal and anti-diagonal checked against that state\'s next draw. "Chance" is how often the same boxes would come at random. The look back is not proof either way: the mirror grid has run a little ahead of the others, but not by enough to rule out luck. The live tiles decide it.</div>';
   $('g5Card').innerHTML = h;
 }
 
-document.addEventListener('change', e => { if(['g5State', 'g5Method', 'g5Key'].includes(e.target.id)){ store(e.target.id, e.target.value); renderG5(); } });
+document.addEventListener('change', e => { if(['g5State', 'g5Method', 'g5Key', 'g5Top'].includes(e.target.id)){ store(e.target.id, e.target.value); renderG5(); } });
 document.addEventListener('input', e => { if(['g5Seed', 'g5Custom'].includes(e.target.id)){ const v = e.target.value.replace(/\D/g, ''); if(v.length === 5 || !v.length) renderG5(); } });
 document.addEventListener('click', e => { const b = e.target.closest('[data-g5copy]'); if(!b) return; const L = G5_LAST[b.dataset.g5copy] || []; syCopy(L.join(' '), 'g5Copied', L.length + ' numbers'); });
-(function(){ for(const id of ['g5Method', 'g5Key']){ const v = store(id), el = $(id); if(el && v && [...el.options].some(o => o.value === v)) el.value = v; }
+(function(){ for(const id of ['g5Method', 'g5Key', 'g5Top']){ const v = store(id), el = $(id); if(el && v && [...el.options].some(o => o.value === v)) el.value = v; }
   const base = renderAll; renderAll = function(){ base(); try{ renderG5(); }catch(err){ console.error(err); if($('g5Out')) $('g5Out').innerHTML = '<div class="empty">Grid 5 could not load.</div>'; } }; })();

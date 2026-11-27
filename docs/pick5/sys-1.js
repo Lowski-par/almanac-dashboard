@@ -441,3 +441,125 @@ document.addEventListener('change', e => { if(['boardTop', 'boardDays'].includes
 document.addEventListener('click', e => { const b = e.target.closest('[data-sycopy="board"]'); if(b) syCopy(SY_BOARD_LAST.join(' '), 'boardCopied', SY_BOARD_LAST.length + ' boxes'); });
 (function(){ for(const id of ['boardTop', 'boardDays']){ const v = store(id), el = $(id); if(el && v && [...el.options].some(o => o.value === v)) el.value = v; }
   const base = renderAll; renderAll = function(){ base(); try{ renderBoard(); }catch(err){ console.error(err); if($('boardOut')) $('boardOut').innerHTML = '<div class="empty">The board could not load.</div>'; } }; })();
+
+/* ══ SAME-STATE MIRROR WATCH (Marcus, Nov 26) ══
+   Each state's draws from the last 7 days: the full mirror box of the draw (0↔5 1↔6 2↔7 3↔8 4↔9), how many systems
+   on this page name that box from the same draw, and whether it has come back in that state (or anywhere) yet.
+   Example that started it: LA Nov 20 88263 → mirror 33718 → LA Nov 25 drew 87331 (same box), named by 7 systems.
+   Four systems always name a draw's mirror (Grid 5 mirror grid diagonal, Mirror, Mirror mixes, +1 1 1 1 1), so 4 is the floor.
+   Tested before it went in (every draw, Aug 2021 – Nov 26 2026, mirror in the same state's next 7 draws):
+   4 systems 64 vs 65.3 (0.98x) · 5: 7 vs 7.3 (0.95x) · 6: 13 vs 15.4 (0.85x) · 7+: 6 vs 3.7 (1.64x, 735 draws, not proven). */
+const SY_MW_LIVE = '2026-11-27', SY_MW_STRONG = 7;
+function sySeedSystems(n){
+  const V = new Map(), base = srt(n), put = (k, s) => { if(k === base) return; if(!V.has(k)) V.set(k, new Set()); V.get(k).add(s); };
+  for(const [label, inc] of Object.entries(RUNDOWNS)){ const steps = inc === '01123' ? END_STEPS : [1,2,3,4,5,6,7,8,9]; for(const k of steps) put(srt(addInc(base, inc, k)), label); }
+  for(const inc of ['67867', '34534']) for(let k = 1; k <= 9; k++) put(srt(addInc(n, inc, k)), 'Rundown ' + inc);
+  put(srt(mirror(n)), 'Mirror');
+  for(const k of syMixBoxes(n)) put(k, 'Mirror mixes');
+  if(typeof lpKeys === 'function'){ try{ let cur = n; for(let k = 0; k < 9; k++){ cur = addInc(cur, '81481', 1); put(srt(cur), 'Lottery Post 814 rundown'); } for(const k of lpKeys(n, 'proj').keys()) put(k, 'Lottery Post projection'); }catch(e){} }
+  if(typeof g5Spiral === 'function'){ const B = g5Spiral(n, false), M = g5Map(B, g5Mir); for(const [, l] of g5Lines(B)) put(srt(l), 'Grid 5 base grid'); for(const [, l] of g5Lines(M)) put(srt(l), 'Grid 5 mirror grid'); }
+  return V;
+}
+function syMirrorWatch(asOf, days){
+  const t1 = dnum(asOf), rows = [];
+  for(const c of syStates()) for(const x of SEQ[c]){ const t = dnum(x.d); if(t > t1 || t <= t1 - days) continue;
+    const M = srt(mirror(x.n)); if(M === srt(x.n)) continue;
+    const sys = sySeedSystems(x.n).get(M) || new Set(), src = {...x, c};
+    let here = null, any = null, since = 0;
+    for(const y of SEQ[c]){ if(!syLater(y, src) || y.d > asOf) continue; since++; if(!here && srt(y.n) === M) here = y; }
+    for(const y of (BOXIDX.get(M) || [])) if(syLater(y, src) && y.d <= asOf){ any = y; break; }
+    rows.push({c, x, M, sys:[...sys], n:sys.size, here, any, since});
+  }
+  return rows.sort((a, b) => (!!a.here - !!b.here) || b.n - a.n || (a.x.d < b.x.d ? 1 : -1));
+}
+function syMwLive(){                        // live test: strong mirrors from Nov 27 on, same state's next 7 draws
+  const R = [0, 0, 0, 0];                   // came, chance, finished, open
+  for(const c of syStates()){ const L = SEQ[c];
+    L.forEach((x, i) => { if(x.d < SY_MW_LIVE) return; const M = srt(mirror(x.n)); if(M === srt(x.n)) return;
+      if((sySeedSystems(x.n).get(M) || new Set()).size < SY_MW_STRONG) return;
+      const nxt = L.slice(i + 1, i + 8); const hit = nxt.some(y => srt(y.n) === M);
+      if(nxt.length < 7 && !hit){ R[3]++; return; }
+      R[0] += hit ? 1 : 0; R[1] += 1 - Math.pow(1 - ways(M) / 1e5, 7); R[2]++; }); }
+  return R;
+}
+function renderMW(){
+  if(!$('mwOut')) return;
+  if(!Object.keys(SEQ).length){ $('mwOut').innerHTML = '<div class="empty">Loading draws…</div>'; return; }
+  const asOf = syPlayDay(), days = +($('mwDays').value || 7), min = +($('mwMin').value || 4);
+  const rows = syMirrorWatch(asOf, days).filter(r => r.n >= min);
+  const open = rows.filter(r => !r.here), strong = open.filter(r => r.n >= SY_MW_STRONG);
+  let h = `<div class="play"><b>${strong.length ? strong.map(r => r.M).join(' ') : 'none'}</b><small>${strong.length ? `Mirror box${strong.length > 1 ? 'es' : ''} named by ${SY_MW_STRONG}+ systems that ${strong.length > 1 ? 'have' : 'has'} not come back in ${strong.length > 1 ? 'their states' : 'its state'} yet` : `No open mirror box has ${SY_MW_STRONG}+ systems behind it right now`} · ${open.length} open of ${rows.length} draws in the last ${days} days with ${min}+ systems.</small></div>`;
+  h += '<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>State</th><th>Drew</th><th>Mirror box</th><th>Systems</th><th>Back in that state?</th><th>Anywhere?</th></tr></thead><tbody>' + rows.map(r =>
+    `<tr${!r.here && r.n >= SY_MW_STRONG ? ' class="top"' : ''}><td>${esc(nm(r.c))}</td><td><span class="mono" data-look="${r.x.n}" style="cursor:pointer;letter-spacing:.05em">${r.x.n}</span> <span class="tag">${esc(slotName(r.c, r.x.s))} ${fmtShort(r.x.d)}</span></td><td class="n"><span class="chip ${r.here ? 'came' : 'open'}" data-look="${mirror(r.x.n)}">${r.M}<small>${ways(r.M)}w</small></span></td><td><b class="num">${r.n}</b> <span style="color:var(--muted);font-size:12px">${esc(r.sys.join(', '))}</span></td><td>${r.here ? `<span class="mk x">✕</span> ${r.here.n} ${fmtShort(r.here.d)}` : `<span class="mk ok">✓</span> open · ${r.since} draw${r.since === 1 ? '' : 's'} since`}</td><td style="font-size:12.5px">${r.any ? `${r.any.n} ${esc(r.any.c.toUpperCase())} ${fmtShort(r.any.d)}` : '<span style="color:var(--muted)">not yet</span>'}</td></tr>`).join('') + '</tbody></table></div>';
+  const L = syMwLive();
+  h += `<div class="tiles" style="margin-top:10px"><div class="tile"><div class="k">Live test from ${fmtShort(SY_MW_LIVE)}: ${SY_MW_STRONG}+ system mirrors, back in the same state within 7 draws</div><div class="v">${L[0]} / ${L[1].toFixed(2)}</div><div class="k">${L[2]} finished · ${L[3]} still open · came vs chance</div></div></div>`;
+  h += `<div class="note">The mirror box is the draw with every digit flipped (0&harr;5 1&harr;6 2&harr;7 3&harr;8 4&harr;9), played in any order. Four systems always name it (Grid 5 mirror grid diagonal, Mirror, Mirror mixes, +1 1 1 1 1), so 4 is the floor; extra votes come when other rundowns or grid lines land on it too. Example: Louisiana drew 88263 on Nov 20; its mirror box 13378 had 7 systems behind it, and Louisiana drew 87331 on Nov 25. Tested on every draw since Aug 2021 (mirror back in the same state within 7 draws): 4 systems 0.98&times;, 5 systems 0.95&times;, 6 systems 0.85&times;, 7+ systems 6 vs 3.7 by chance (1.64&times;) &mdash; only 735 draws, so not proven. The live tile counts only draws from Nov 27 on.</div>`;
+  $('mwOut').innerHTML = h;
+}
+document.addEventListener('change', e => { if(['mwDays', 'mwMin'].includes(e.target.id)){ store(e.target.id, e.target.value); renderMW(); } });
+(function(){ for(const id of ['mwDays', 'mwMin']){ const v = store(id), el = $(id); if(el && v && [...el.options].some(o => o.value === v)) el.value = v; }
+  const base = renderAll; renderAll = function(){ base(); try{ renderMW(); }catch(err){ console.error(err); if($('mwOut')) $('mwOut').innerHTML = '<div class="empty">Mirror watch could not load.</div>'; } }; })();
+
+/* ══ WHY THIS NUMBER? (Marcus, Nov 26) ══
+   One report for any number: everything on this page that points at it, from the state's and every state's draws.
+   Built after the 44004 question (LA): Mirror Doubles set 0459 ready, LA 44009 one flip away, Pick 4 full of its mirror
+   digits, date sums calling it on Nov 28-29 — all real, none tested above chance.
+   Tested before it went in (every Pick 5 day since Aug 2021, next day, any state, against the same picks checked
+   2-30 days later): build-up (most-named boxes over 14 days) top 10 1.11x but later days 1.15x — no timing signal;
+   one flip away from the day's draws 1.06x vs 1.00x later (2 of 15 later days as high) — a lean, not proven.
+   So the report is context: it explains a number, it does not push it up Today's board. */
+function syFlipOne(n){ const out = []; for(let p = 0; p < 5; p++) out.push(n.slice(0, p) + SY_M(n[p]) + n.slice(p + 1)); return out; }
+function syP4Share(digits){ const key = 'p4|' + digits; if(SY_SH.has(key)) return SY_SH.get(key); let c = 0;
+  for(let i = 0; i < 1e4; i++){ const s = String(i).padStart(4, '0'); if(syP4Hit(s, digits)) c++; } SY_SH.set(key, c / 1e4); return c / 1e4; }
+function syP4Hit(p4, digits){ const r = digits.split(''); let k = 0; for(const ch of p4){ const i = r.indexOf(ch); if(i >= 0){ r.splice(i, 1); k++; } } return k >= 3; }   // shares 3+ digits (as a set with repeats)
+function renderWhy(){
+  if(!$('whyOut')) return;
+  if(!Object.keys(SEQ).length){ $('whyOut').innerHTML = '<div class="empty">Loading draws…</div>'; return; }
+  const sel = $('whyState'); if(sel && sel.options.length <= 1){ sel.innerHTML = '<option value="">All states</option>' + syStates().map(c => `<option value="${c}">${esc(nm(c))}</option>`).join(''); const v = store('whyState'); if(v !== null && v !== undefined) sel.value = v; }
+  const N = ($('whyBox').value || '').replace(/\D/g, '');
+  if(N.length !== 5){ $('whyOut').innerHTML = '<div class="empty">Type a five-digit number, or tap any number on the page.</div>'; return; }
+  const c = sel.value || '', K = srt(N), M = mirror(N), MK = srt(M), asOf = syPlayDay(), t1 = dnum(asOf), w = ways(K);
+  const inWin = (x, days) => { const t = dnum(x.d); return t <= t1 && t > t1 - days; };
+  const all = bfAll().filter(x => x.d <= asOf), mine = c ? all.filter(x => x.c === c) : all;
+  const where = c ? esc(nm(c)) : 'all states';
+  const sec = (title, body) => `<div class="sub-h">${title}</div>${body}`;
+  let h = '';
+  // 1 history and odds
+  const came = (BOXIDX.get(K) || []).filter(x => x.d <= asOf), cameHere = c ? came.filter(x => x.c === c) : came, str = came.filter(x => x.n === N);
+  const perState = c ? (SEQ[c] || []).length : 0, avgWait = Math.round(1e5 / w);
+  h += `<div class="play"><b>${N}</b><small>Box ${K} · ${w}-way · comes about 1 draw in ${avgWait.toLocaleString()} as a box (1 in 100,000 straight). ${cameHere.length ? `Last in ${where}: ${cameHere[cameHere.length - 1].n} ${esc(cameHere[cameHere.length - 1].c.toUpperCase())} ${fmtShort(cameHere[cameHere.length - 1].d)}, ${cameHere[cameHere.length - 1].d.slice(0, 4)}.` : `Not in ${where} since the history starts.`} ${c ? `At one or two draws a day, a ${w}-way box is due in ${esc(nm(c))} only about once every ${Math.round(avgWait / (perState / Math.max(1, (t1 - dnum(SEQ[c][0].d)) / 365)) )} years, so "due" never really applies.` : ''}</small></div>`;
+  h += sec(`Every time it came (box) · ${came.length} on file`, came.length ? '<div class="chips">' + came.slice(-12).reverse().map(x => `<span class="chip${x.n === N ? ' hot' : ''}">${x.n}<small>${esc(x.c.toUpperCase())} ${fmtShort(x.d)} ${x.d.slice(0, 4)}${x.n === N ? ' · straight' : ''}</small></span>`).join('') + '</div>' : '<div class="empty">Never on file.</div>');
+  // 2 systems that named it (30 days), build-up (14 days)
+  const named = []; for(const x of all){ if(!inWin(x, 30)) continue; const s = sySeedSystems(x.n).get(K); if(s && s.size) named.push({x, s:[...s]}); }
+  const b14 = named.filter(r => inWin(r.x, 14)).reduce((a, r) => a + r.s.length, 0), maxOne = named.reduce((a, r) => Math.max(a, r.s.length), 0);
+  h += sec(`Systems that named it · last 30 days, every state`, named.length ? `<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>Day</th><th>State</th><th>Draw</th><th>Systems</th></tr></thead><tbody>${named.slice().reverse().map(r => `<tr${c && r.x.c === c ? ' class="top"' : ''}><td>${fmtShort(r.x.d)}</td><td>${esc(r.x.c.toUpperCase())}</td><td class="mono">${r.x.n}</td><td>${esc(r.s.join(', '))}</td></tr>`).join('')}</tbody></table></div><div class="note" style="margin-top:4px">${named.length} draws named it; the most from one draw was ${maxOne} system${maxOne === 1 ? '' : 's'}${maxOne >= 2 ? '' : ' (never two at once, so it never reached Today\'s board)'}. Build-up over the last 14 days: ${b14} mention${b14 === 1 ? '' : 's'}.</div>` : '<div class="empty">No system named it in the last 30 days.</div>');
+  // 3 one flip away
+  const flips = mine.filter(x => inWin(x, 14) && syFlipOne(x.n).some(v => srt(v) === K)).map(x => ({x, exact: syFlipOne(x.n).includes(N)}));
+  h += sec(`One mirror flip away · last 14 days, ${where}`, flips.length ? '<div class="chips">' + flips.reverse().map(r => `<span class="chip${r.exact ? ' hot' : ''}" data-look="${r.x.n}">${r.x.n}<small>${esc(r.x.c.toUpperCase())} ${fmtShort(r.x.d)}${r.exact ? ' · flips to ' + N + ' exactly' : ' · flips to the box'}</small></span>`).join('') + '</div>' : '<div class="empty">No draw was one flip away.</div>');
+  // 4 mirror doubles
+  const md = syMdState(asOf, '', 7).filter(z => z.S.mem.some(p => syHas(K, p)));
+  h += sec('Mirror Doubles sets it belongs to · last 7 days, all states', md.length ? md.map(z => `<div style="font-size:13.5px;margin:3px 0"><b class="mono">${z.S.name}</b> set (${z.S.mem.map(p => p + 'x').join(' ')}): ${z.n} of 5 came${z.ready ? ` — <b>ready</b>, open plays ${z.rest.map(p => (syHas(K, p) ? '<b>' + p + 'x</b>' : p + 'x')).join(' ')}` : ' — not ready'}. ${z.S.mem.map((p, i) => z.came[i].length ? `${p}x: ${z.came[i].slice(-2).map(x => x.n + ' ' + x.c.toUpperCase() + ' ' + fmtShort(x.d)).join(', ')}` : '').filter(Boolean).join(' · ')}</div>`).join('') : '<div class="empty">It holds no Mirror Doubles set member (it needs a single like 0156x or a double pair like 0011x).</div>');
+  // 5 mirror side and Pick 4
+  const p5m = all.filter(x => inWin(x, 14)).filter(x => [...sySubs(x.n, 4)].some(s => syHas(MK, s)));
+  const p5mShare = syShare({k:'pat', v:[...sySubs(MK, 4)]});
+  let p4n = 0, p4m = 0, p4k = 0, p4list = [];
+  for(const [d, m] of P4DAY){ const t = dnum(d); if(t > t1 || t <= t1 - 14) continue; for(const cc in m) for(const x of m[cc]){ p4n++; if(syP4Hit(x.n, MK)){ p4m++; p4list.push({d, c:cc, n:x.n}); } if(syP4Hit(x.n, K)) p4k++; } }
+  const sM = syP4Share(MK), sK = syP4Share(K);
+  h += sec(`Its mirror side · mirror ${M} (box ${MK}) · last 14 days`, `<div style="font-size:13.5px">Pick 5 draws holding 4 of its mirror's digits: <b>${p5m.length}</b> vs ${(all.filter(x => inWin(x, 14)).length * p5mShare).toFixed(1)} by chance${p5m.length ? ' (' + p5m.slice(-6).map(x => x.n + ' ' + x.c.toUpperCase()).join(', ') + ')' : ''}.<br>Pick 4 draws (every state) sharing 3+ digits with its mirror: <b>${p4m}</b> vs ${(p4n * sM).toFixed(1)} by chance${p4list.length ? ' (latest ' + p4list.sort((a, b) => a.d < b.d ? 1 : -1).slice(0, 8).map(x => x.n + ' ' + x.c.toUpperCase()).join(', ') + ')' : ''}. Sharing 3+ digits with the number itself: <b>${p4k}</b> vs ${(p4n * sK).toFixed(1)}.</div>`);
+  // 6 coming dates
+  const cal = []; for(let k = 0; k <= 7; k++){ const d = syShift(asOf, k), hits = ['last3', 'md', 'mdy', 'rmd', 'rmdy'].filter(id => syMatch(N, syDsSpec(id, d))).map(id => SY_DS.find(v => v.id === id).name); if(hits.length) cal.push(`<b>${fmtShort(d)}</b>: ${esc(hits.join(', '))}`); }
+  h += sec('Date sums that call it · today and the next 7 days', cal.length ? `<div style="font-size:13.5px;line-height:1.6">${cal.join('<br>')}</div>` : '<div class="empty">No date sum calls it this week.</div>');
+  // 7 grid
+  const gr = []; for(const x of mine){ if(!inWin(x, 30)) continue; const B = g5Spiral(x.n, false), MG = g5Map(B, g5Mir);
+    for(const [gn, g] of [['Base', B], ['Mirror', MG]]) for(const [lab, l] of g5Lines(g)) if(srt(l) === K) gr.push(`${x.n} ${x.c.toUpperCase()} ${fmtShort(x.d)} · ${gn} ${lab} (${l})`); }
+  h += sec(`Grid 5 · every draw in the last 30 days, ${where}`, gr.length ? `<div style="font-size:13.5px">${gr.map(esc).join('<br>')}</div>` : '<div class="empty">No grid line produced it.</div>');
+  // verdict
+  const pts = [named.length ? `${named.length} single-system mention${named.length > 1 ? 's' : ''}` : '', flips.length ? `${flips.length} draw${flips.length > 1 ? 's' : ''} one flip away` : '', md.some(z => z.ready && z.rest.some(p => syHas(K, p))) ? 'a ready Mirror Doubles set' : '', p4m > p4n * sM * 1.25 ? 'Pick 4 heavy on its mirror digits' : '', cal.length ? `date sums on ${cal.length} day${cal.length > 1 ? 's' : ''} this week` : '', gr.length ? 'Grid 5 lines' : ''].filter(Boolean);
+  h = `<div class="note" style="margin:0 0 10px;font-size:13.5px;color:var(--ink)"><b>In short:</b> ${pts.length ? 'what points at it — ' + pts.join(' · ') + '.' : 'nothing on this page points at it right now.'} None of these pieces has beaten chance in testing; together they explain why a number feels "around," not that it will come.</div>` + h;
+  h += '<div class="note">Tested before this went in, on every Pick 5 day since Aug 2021: the most-named boxes over 14 days ran 1.11&times; the next day but 1.15&times; on later days too, so there is no timing signal; numbers one flip from the day\'s draws ran 1.06&times; the next day against 1.00&times; on later days (a lean, not proven). So this report explains a number; it does not move it up Today\'s board.</div>';
+  $('whyOut').innerHTML = h;
+}
+document.addEventListener('change', e => { if(e.target.id === 'whyState'){ store('whyState', e.target.value); renderWhy(); } });
+document.addEventListener('input', e => { if(e.target.id === 'whyBox'){ const v = e.target.value.replace(/\D/g, ''); if(v.length === 5 || !v.length) renderWhy(); } });
+document.addEventListener('click', e => { const l = e.target.closest('[data-look]'); if(l && /^\d{5}$/.test(l.dataset.look) && $('whyBox') && !e.target.closest('#pWhy')){ $('whyBox').value = l.dataset.look; try{ renderWhy(); }catch(err){} } });
+(function(){ const base = renderAll; renderAll = function(){ base(); try{ renderWhy(); }catch(err){ console.error(err); if($('whyOut')) $('whyOut').innerHTML = '<div class="empty">This report could not load.</div>'; } }; })();

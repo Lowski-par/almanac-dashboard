@@ -124,6 +124,7 @@ table.g5g td{width:32px;height:32px;text-align:center;font-family:var(--mono);fo
 table.g5g td.pk{background:#F7C6DD;color:#141A2E}
 table.g5g td.dg{background:var(--navy);color:var(--navy-ink);font-weight:600}
 table.g5g td.dg.pk{background:#7A1E48;color:#fff}
+.g5m{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;padding:1px 5px;border-radius:4px;background:var(--accent);color:var(--accent-ink)}
 table.g5g td i{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
 /* triple watch grid */
 table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
@@ -182,17 +183,38 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
   </div>
 </details>
 
-<details class="panel" open id="pG5"><summary><h2>Grid 5</h2><span class="sub">the Pick 5 grid rundown: base, mirror and flip grids, every line, ranked for the state</span></summary>
+<details class="panel" open id="pWhy"><summary><h2>Why this number?</h2><span class="sub">everything on this page that points at one number &mdash; for when someone says it&rsquo;s due</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Number <input class="big" id="whyBox" maxlength="5" inputmode="numeric" placeholder="44004"></label>
+      <label>State <select id="whyState"><option value="">All states</option></select></label>
+    </div>
+    <div id="whyOut"><div class="empty">Type a five-digit number, or tap any number on the page.</div></div>
+  </div>
+</details>
+
+<details class="panel" open id="pMW"><summary><h2>Mirror watch</h2><span class="sub">each state's mirror box from the last week, how many systems back it, and whether it came back</span></summary>
+  <div class="pbody">
+    <div class="ctl">
+      <label>Draws from the last <select id="mwDays"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option></select></label>
+      <label>Show <select id="mwMin"><option value="4">every draw (4+ systems)</option><option value="5">5+ systems</option><option value="6">6+ systems</option><option value="7">7+ systems</option></select></label>
+    </div>
+    <div id="mwOut"><div class="empty">Loading draws&hellip;</div></div>
+  </div>
+</details>
+
+<details class="panel" open id="pG5"><summary><h2>Grid 5</h2><span class="sub">the Master Grid System for Pick 5: base and mirror grids, every row, column and diagonal, ranked for the state</span></summary>
   <div class="pbody">
     <div class="ctl">
       <label>State <select id="g5State"></select></label>
       <label>Seed <input class="big" id="g5Seed" maxlength="5" inputmode="numeric" placeholder="last draw"></label>
-      <label>Build <select id="g5Method"><option value="B">Seed on the diagonal, counter-clockwise</option><option value="Bcw">Seed on the diagonal, clockwise</option><option value="A">Last 5 draws as rows</option></select></label>
+      <label>Build <select id="g5Method"><option value="B">Seed on the diagonal, counter-clockwise (preferred)</option><option value="Bcw">Seed on the diagonal, clockwise</option><option value="A">Last 5 draws as rows</option></select></label>
+      <label>Show <select id="g5Top"><option value="10">top 10</option><option value="15">top 15</option></select></label>
       <label>Rundown key <select id="g5Key"><option value="12345">+1 2 3 4 5 (classic)</option><option value="11111">+1 1 1 1 1 (simple)</option><option value="67867">67867</option><option value="95379">95379</option><option value="31753">31753</option><option value="custom">Your own key</option></select></label>
       <label id="g5CustomWrap" hidden>Key <input id="g5Custom" maxlength="5" inputmode="numeric" placeholder="12345" style="width:80px"></label>
     </div>
     <div id="g5Out"><div class="empty">Loading draws&hellip;</div></div>
-    <div class="note">Lines: every row, every column, the diagonal and the anti-diagonal of each grid; no other paths until exact cell sequences are defined. Ranking: mirror line +3, base line +1, flip line +0.5, on both base and mirror +2 more. Then small tie-breakers: +0.25 per hot digit (top 3 in the state's last 30 draws), +0.5 per position holding the digit gone longest there, +0.5 for the date digit or its mirror. The same seed ranks differently in each state. Leave Seed blank to use the state's last draw; tap any number to look it up.</div>
+    <div class="note"><b>Master Grid System.</b> Two grids: Base and Mirror (0&harr;5 1&harr;6 2&harr;7 3&harr;8 4&harr;9). Lines: every row, every column and both diagonals; no other paths until exact cells are defined. Ranking, strict order: <b>1</b> the Mirror grid&rsquo;s two diagonals, <b>2</b> numbers on both Base and Mirror (any order), <b>3</b> the other Mirror lines, <b>4</b> Base-only lines. Inside each tier, the state&rsquo;s filters boost a number +1 each: hot digits (top 3 in its last 30 draws), a digit gone longest in its position, the date digit or its mirror, and its 5 strongest pairs (last 30 draws). The same seed ranks differently in each state. Leave Seed blank to use the state&rsquo;s latest draw.</div>
     <div class="sub-h">How the grids have done</div>
     <div id="g5Card"></div>
   </div>

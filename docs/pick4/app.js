@@ -1549,3 +1549,182 @@ function dspNear4(iso, states){
   return '<div class="dsrow" style="color:var(--ink-soft);margin-top:6px">Day before / day after &mdash; the neighbors&rsquo; pairs in today&rsquo;s draws (came / chance):</div>'+
     row('Yesterday&rsquo;s ('+(+isoAdd(iso,-1).slice(5,7))+'/'+(+isoAdd(iso,-1).slice(8))+')', isoAdd(iso,-1)) + row('Tomorrow&rsquo;s ('+(+isoAdd(iso,1).slice(5,7))+'/'+(+isoAdd(iso,1).slice(8))+')', isoAdd(iso,1));
 }
+
+/* ===== Master Grid System, Pick 4 (replaces the earlier grid tab: no flip grid, corners or rundown keys) ===== */
+window.GRID_CFG = { N:4, top:15, seq:() => SEQ, name:c => (typeof P4NAMES !== 'undefined' && P4NAMES[c]) || nm(c), look:n => { useSeed(n); showTab('grand'); }, note:'Tapping a number sends it to 100 Grand as the seed.' };
+
+/* ===== Master Grid System (Pick 3 / Pick 4 / Pick 5) — Marcus's official rules, Nov 26 2026 =====
+   Base grid: seed on the main diagonal. Default fill = RING fill (Marcus, Nov 26: all three games fill the same way):
+   each ring counts +1 counter-clockwise from its bottom-right diagonal cell (up the right side, left across the top,
+   down the left side, right along the bottom), skipping the diagonal — matches his Pick 5 sheet (LA 55453) and the app.
+   Seed 5832 -> 5765/8844/9533/0122; seed 123 -> 165/724/893. Second choice: the ROW fill from his 5832 sheet
+   (column 1 counts down 1 per row; each row counts down until the diagonal, then up after it). Alternative: last N draws as rows.
+   Mirror grid: every digit +5 (0-5 1-6 2-7 3-8 4-9). Lines: every row, every column, both diagonals. Nothing else.
+   Rank (strict tiers): 1 mirror diagonals, 2 numbers in both grids (same box), 3 other mirror lines, 4 base only.
+   Inside a tier, state boost: H hot digit, O overdue digit, D date digit or its mirror, P strong recent pair.
+   Host page sets GRID_CFG = {N, seq(), name(c), look(n), top} before this file loads. */
+(function(){
+const C = window.GRID_CFG; if(!C) return;
+const N = C.N, MIR = d => (d + 5) % 10, mod = x => ((x % 10) + 10) % 10, srtN = n => n.split('').sort().join('');
+const $g = id => document.getElementById(id);
+const FILL_NAME = {ring:'ring fill, counter-clockwise', ringcw:'ring fill, clockwise', row:'row fill (5832 sheet)', rowcw:'row fill (5832 sheet), clockwise'};
+function grid(seed, mode){
+  if(mode === true) mode = 'ringcw'; if(!FILL_NAME[mode]) mode = 'ring';
+  return mode === 'row' ? rowGrid(seed, false) : mode === 'rowcw' ? rowGrid(seed, true) : ringGrid(seed, mode === 'ringcw');
+}
+function ringGrid(seed, cw){
+  const s = String(seed).split('').map(Number), g = Array.from({length:N}, () => Array(N).fill(0));
+  for(let i = 0; i < N; i++) g[i][i] = s[i];
+  for(let lo = 0, hi = N - 1; hi > lo; lo++, hi--){ let v = g[hi][hi]; const path = [];
+    if(!cw){ for(let r = hi-1; r >= lo; r--) path.push([r,hi]); for(let c = hi-1; c >= lo; c--) path.push([lo,c]); for(let r = lo+1; r <= hi; r++) path.push([r,lo]); for(let c = lo+1; c < hi; c++) path.push([hi,c]); }
+    else { for(let c = hi-1; c >= lo; c--) path.push([hi,c]); for(let r = hi-1; r >= lo; r--) path.push([r,lo]); for(let c = lo+1; c <= hi; c++) path.push([lo,c]); for(let r = lo+1; r < hi; r++) path.push([r,hi]); }
+    for(const [r,c] of path){ if(r === c) continue; v = (v + 1) % 10; g[r][c] = v; } }
+  return g;
+}
+function rowGrid(seed, cw){
+  const s = String(seed).split('').map(Number), sg = cw ? 1 : -1, g = Array.from({length:N}, () => Array(N).fill(0));
+  for(let r = 0; r < N; r++){
+    g[r][0] = r === 0 ? s[0] : mod(s[0] + sg*r);
+    for(let c = 0; c < N; c++){
+      if(c === r) g[r][c] = s[r];
+      else if(c > 0 && c < r) g[r][c] = mod(g[r][c-1] + sg);
+      else if(c > r) g[r][c] = mod(g[r][c-1] - sg);
+    }
+  }
+  return g;
+}
+function lines(g, tag){
+  const L = [], j = a => a.join('');
+  L.push({tag, line:'main diagonal', n:j(g.map((r,i) => r[i])), diag:true});
+  L.push({tag, line:'anti-diagonal', n:j(g.map((r,i) => r[N-1-i])), diag:true});
+  for(let i = 0; i < N; i++) L.push({tag, line:'row '+(i+1), n:j(g[i])});
+  for(let i = 0; i < N; i++) L.push({tag, line:'column '+(i+1), n:j(g.map(r => r[i]))});
+  return L;
+}
+function seqOf(c){
+  const S = C.seq()[c] || [];
+  return S.slice().sort((a,b) => a.d < b.d ? -1 : a.d > b.d ? 1 : (a.s === b.s ? 0 : a.s === 'm' ? -1 : 1));
+}
+function todayISO(){ try{ return new Date().toLocaleDateString('en-CA', {timeZone:'America/New_York'}); }catch(e){ return new Date().toISOString().slice(0,10); } }
+/* state boosts from that state's last 30 draws */
+function boosts(c){
+  const S = c ? seqOf(c).slice(-30) : [], cnt = Array(10).fill(0), lastIx = Array(10).fill(-1), pc = {};
+  S.forEach((x, i) => { const ds = [...new Set(x.n.split('').map(Number))]; ds.forEach(d => { cnt[d]++; lastIx[d] = i; });
+    for(let a = 0; a < ds.length; a++) for(let b = a+1; b < ds.length; b++){ const k = [ds[a],ds[b]].sort().join(''); pc[k] = (pc[k]||0) + 1; } });
+  const hot = S.length ? [0,1,2,3,4,5,6,7,8,9].sort((a,b) => cnt[b]-cnt[a] || a-b).slice(0,3) : [];
+  const due = S.length ? [0,1,2,3,4,5,6,7,8,9].sort((a,b) => lastIx[a]-lastIx[b] || a-b).slice(0,2) : [];
+  const day = +todayISO().slice(8,10), dd = day % 10, date = [dd, MIR(dd)];
+  const pairs = Object.entries(pc).filter(e => e[1] > 0).sort((a,b) => b[1]-a[1] || (a[0] < b[0] ? -1 : 1)).slice(0,5).map(e => e[0]);
+  return {hot, due, date, pairs, nDraws:S.length, dd};
+}
+function boostOf(n, B, useState){
+  const ds = new Set(n.split('').map(Number)), tags = [];
+  if(useState){
+    const h = B.hot.filter(d => ds.has(d)).length; if(h) tags.push(['H', h]);
+    const o = B.due.filter(d => ds.has(d)).length; if(o) tags.push(['O', o]);
+  }
+  if(B.date.some(d => ds.has(d))) tags.push(['D', 1]);
+  if(useState){ const p = B.pairs.filter(k => ds.has(+k[0]) && ds.has(+k[1])).length; if(p) tags.push(['P', p]); }
+  return {tags, score: tags.reduce((a,t) => a + t[1], 0)};
+}
+function build(baseGrid, B, useState){
+  const mir = baseGrid.map(r => r.map(MIR)), BL = lines(baseGrid, 'Base'), ML = lines(mir, 'Mirror');
+  const mBox = new Set(ML.map(x => srtN(x.n))), bBox = new Set(BL.map(x => srtN(x.n)));
+  const U = new Map();   // unique straight -> entry
+  for(const x of ML.concat(BL)){
+    let e = U.get(x.n); if(!e){ e = {n:x.n, from:[], mirror:false, base:false, mdiag:false}; U.set(x.n, e); }
+    e.from.push(x.tag+' '+x.line); if(x.tag === 'Mirror'){ e.mirror = true; if(x.diag) e.mdiag = true; } else e.base = true;
+  }
+  const order = [...U.keys()];
+  for(const e of U.values()){
+    const b = srtN(e.n); e.both = mBox.has(b) && bBox.has(b);
+    e.tier = e.mdiag ? 1 : e.both ? 2 : e.mirror ? 3 : 4;
+    Object.assign(e, boostOf(e.n, B, useState)); e.ord = order.indexOf(e.n);
+  }
+  const ranked = [...U.values()].sort((a,b) => a.tier - b.tier || b.score - a.score || a.ord - b.ord);
+  return {base:baseGrid, mir, ranked, all:order.map(k => U.get(k))};
+}
+const TIERNAME = {1:'Mirror diagonal', 2:'In both grids', 3:'Mirror line', 4:'Base only'};
+const TIERCOL = {1:'#1D6B3F', 2:'#7A3E9D', 3:'#2F6FD6', 4:'#8A8577'};
+function cellHTML(g){
+  return '<table style="border-collapse:collapse;margin:4px 0"><tbody>'+g.map((r,i) => '<tr>'+r.map((d,j) =>
+    '<td style="font-family:\'Roboto Mono\',monospace;font-size:'+(N>4?17:20)+'px;text-align:center;min-width:'+(N>4?26:32)+'px;padding:3px 2px;border:1px solid rgba(0,0,0,.12);'+
+    (i===j?'font-weight:700;background:rgba(47,111,214,.14)':(i+j===N-1?'background:rgba(255,158,74,.16)':''))+'">'+d+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+}
+function mount(){
+  const host = $g('gridHost'); if(!host || $g('grOut')) return !!host;
+  host.innerHTML = '<div class="controls" style="margin-top:0;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center">'+
+    '<label>State <select id="grState"><option value="">&mdash; type a seed or pick &mdash;</option></select></label>'+
+    '<label>Seed <input id="grSeed" inputmode="numeric" maxlength="'+N+'" placeholder="'+'583 5831 58317'.split(' ')[N-3]+'" style="width:'+(50+N*10)+'px"></label>'+
+    '<label>Method <select id="grMethod"><option value="seed" selected>Seed on the diagonal (preferred)</option><option value="last">Last '+N+' draws as rows</option></select></label>'+
+    '<label>Fill <select id="grDir"><option value="ring" selected>Ring, counter-clockwise (preferred)</option><option value="ringcw">Ring, clockwise</option><option value="row">Row fill (5832 sheet)</option><option value="rowcw">Row fill, clockwise</option></select></label>'+
+    '<label>Show <select id="grTop"><option value="10"'+(C.top===10?' selected':'')+'>Top 10</option><option value="15"'+(C.top===15?' selected':'')+'>Top 15</option></select></label>'+
+    '</div><div id="grOut"><div class="empty note">Type a '+N+'-digit seed, or pick a state to use its latest draw.</div></div>';
+  $g('grState').onchange = render; $g('grMethod').onchange = render; $g('grDir').onchange = render; $g('grTop').onchange = render;
+  $g('grSeed').oninput = () => { const el = $g('grSeed'); el.value = (el.value.match(/\d/g)||[]).join('').slice(0,N); if(el.value.length === N || !el.value) render(); };
+  return true;
+}
+let lastCount = -1;
+function fillStates(){
+  const sel = $g('grState'), S = C.seq(), keys = Object.keys(S).filter(c => (S[c]||[]).length).sort((a,b) => C.name(a).localeCompare(C.name(b)));
+  if(sel.options.length - 1 === keys.length) return; const keep = sel.value;
+  sel.innerHTML = '<option value="">&mdash; type a seed or pick &mdash;</option>'+keys.map(c => '<option value="'+c+'">'+C.name(c)+'</option>').join('');
+  if(keep) sel.value = keep;
+}
+function render(){
+  if(!mount()) return; fillStates();
+  const out = $g('grOut'), st = $g('grState').value, method = $g('grMethod').value, cw = $g('grDir').value, top = +$g('grTop').value;
+  const typed = $g('grSeed').value.trim(), seq = st ? seqOf(st) : [], last = seq[seq.length-1];
+  const tag = x => C.name(st)+' '+x.d.slice(5)+' '+(x.s==='m'?'mid':x.s==='e'?'eve':x.s||'');
+  let G, from, since = null, base;
+  const B = boosts(st);
+  if(method === 'last'){
+    if(!st || seq.length < N){ out.innerHTML = '<div class="empty note">Pick a state to use its last '+N+' draws as the rows.</div>'; return; }
+    const lN = seq.slice(-N).reverse(); base = lN.map(x => x.n.split('').map(Number));
+    from = 'the last '+N+' draws in '+C.name(st)+' (newest on top): '+lN.map(x => '<b>'+x.n+'</b>').join(', '); since = last;
+  } else {
+    const seed = typed.length === N ? typed : (last ? last.n : '');
+    if(seed.length !== N){ out.innerHTML = '<div class="empty note">Type a '+N+'-digit seed, or pick a state to use its latest draw.</div>'; return; }
+    base = grid(seed, cw);
+    from = 'seed <b>'+seed+'</b>'+(typed.length === N ? ' (typed)' : ' &mdash; '+tag(last)+' (latest draw)')+' &middot; '+(FILL_NAME[cw] || FILL_NAME.ring);
+    if(typed.length !== N) since = last;
+  }
+  G = build(base, B, !!st);
+  /* came since the seed draw, same state (box) */
+  const came = {};
+  if(since){ const after = x => x.d > since.d || (x.d === since.d && x.s === 'e' && since.s === 'm');
+    seq.forEach(x => { if(after(x)) (came[srtN(x.n)] = came[srtN(x.n)] || []).push(x.n+' '+x.d.slice(5)); }); }
+  const tagsHTML = e => e.tags.map(t => '<i class="grb grb'+t[0]+'">'+t[0]+(t[1]>1?'<small>'+t[1]+'</small>':'')+'</i>').join('');
+  const card = (e, i) => { const cs = came[srtN(e.n)];
+    return '<button type="button" class="grpick'+(cs?' came':'')+'" style="border-left-color:'+TIERCOL[e.tier]+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+
+      '<span class="grn">'+e.n+'</span><span class="grtags"><i class="grb" style="background:'+(e.mirror?'#1D6B3F':'#8A8577')+'">'+(e.mirror?'MIRROR':'BASE')+'</i>'+tagsHTML(e)+'</span>'+
+      '<span class="grst">#'+(i+1)+' '+TIERNAME[e.tier]+' &middot; '+e.from.join(', ')+(cs ? ' &middot; <b>came: '+cs.slice(0,2).join(', ')+'</b>' : since ? ' &middot; not yet' : '')+'</span></button>'; };
+  let h = '<div class="note" style="margin:0 0 6px">Built from '+from+'</div>';
+  h += '<div style="display:flex;gap:22px;flex-wrap:wrap"><div><div class="grh">Base grid</div>'+cellHTML(G.base)+'</div><div><div class="grh">Mirror grid</div>'+cellHTML(G.mir)+'</div></div>';
+  if(st) h += '<div class="note" style="margin:6px 0">Boosts for '+C.name(st)+' (last '+B.nDraws+' draws): <b>H</b> hot digits '+B.hot.join(' ')+' &middot; <b>O</b> overdue '+B.due.join(' ')+' &middot; <b>D</b> date digit '+B.date[0]+' / mirror '+B.date[1]+' &middot; <b>P</b> pairs '+B.pairs.map(p => p.split('').join('-')).join(' ')+'</div>';
+  else h += '<div class="note" style="margin:6px 0">Pick a state to add its boosts (hot, overdue, pairs). <b>D</b> = today&rsquo;s date digit '+B.date[0]+' or its mirror '+B.date[1]+'.</div>';
+  h += '<div class="grh">Ranked Top '+top+'</div><div class="grgrid">'+G.ranked.slice(0, top).map(card).join('')+'</div>';
+  h += '<details style="margin-top:10px"><summary style="cursor:pointer" class="grh">Full list &mdash; all '+G.all.length+' unique numbers (grid order, mirror first)</summary><div class="grfull">'+
+    G.all.map(e => '<span class="grchip'+(e.mirror?' m':'')+(came[srtN(e.n)]?' came':'')+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+e.n+'<small>'+(e.mirror?'M':'B')+'</small></span>').join('')+'</div></details>';
+  h += '<div class="note" style="margin-top:8px">Rank order is strict: <b style="color:'+TIERCOL[1]+'">mirror diagonals</b> &rarr; <b style="color:'+TIERCOL[2]+'">numbers in both grids</b> (same box) &rarr; <b style="color:'+TIERCOL[3]+'">other mirror lines</b> &rarr; <b style="color:'+TIERCOL[4]+'">base only</b>; the state boosts only reorder numbers inside a tier. Lines used: every row, every column and both diagonals &mdash; nothing else. Blue cells = main diagonal, orange = anti-diagonal. Red = came in this state since the seed draw (any order). Tap a number to look it up.'+(C.note ? ' '+C.note : '')+'</div>';
+  out.innerHTML = h;
+  out.querySelectorAll('[data-n]').forEach(el => el.onclick = () => { try{ C.look(el.dataset.n); }catch(e){} });
+}
+const css = document.createElement('style');
+css.textContent = '.grh{font-family:Oswald,sans-serif;text-transform:uppercase;letter-spacing:.09em;font-size:11px;color:var(--ink-soft,#666);margin:10px 0 4px}'+
+ '.grgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(170px,100%),1fr));gap:8px}'+
+ '.grpick{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;border:1px solid rgba(0,0,0,.15);border-left:5px solid #2F6FD6;border-radius:6px;padding:7px 10px;background:rgba(47,111,214,.05);cursor:pointer;font:inherit;color:inherit}'+
+ '.grpick.came{background:rgba(255,107,94,.08)}.grpick.came .grn{text-decoration:line-through;text-decoration-color:#FF6B5E}'+
+ '.grn{font-family:\'Roboto Mono\',monospace;font-size:22px;font-weight:700;letter-spacing:.12em;line-height:1.1}'+
+ '.grtags{display:flex;gap:3px;flex-wrap:wrap}.grb{font-style:normal;font-family:\'Roboto Mono\',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;background:#555}.grb small{font-size:8px;margin-left:1px}'+
+ '.grbH{background:#C0392B}.grbO{background:#6B4E16}.grbD{background:#B7791F}.grbP{background:#7A3E9D}'+
+ '.grst{font-size:11px;color:var(--ink-soft,#666);line-height:1.35}.grpick.came .grst b{color:#B8362B}'+
+ '.grfull{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.grchip{font-family:\'Roboto Mono\',monospace;font-size:14px;border:1px solid rgba(0,0,0,.18);border-radius:4px;padding:2px 6px;cursor:pointer}'+
+ '.grchip.m{border-color:#1D6B3F;background:rgba(29,107,63,.08)}.grchip.came{text-decoration:line-through;color:#B8362B}.grchip small{font-size:9px;margin-left:3px;opacity:.7}';
+document.head.appendChild(css);
+window.renderGridN = render; window.gridBuild = (seed, cw, st) => build(grid(seed, cw), boosts(st||''), !!st);
+setInterval(() => { try{ const S = C.seq(), n = Object.values(S).reduce((a,b) => a + (b||[]).length, 0); if(n !== lastCount){ lastCount = n; render(); } }catch(e){} }, 2000);
+try{ render(); }catch(e){}
+})();
+renderGrid = function(){ if(window.renderGridN) renderGridN(); };
+grStateChanged = renderGrid;

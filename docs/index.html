@@ -246,6 +246,11 @@ table.dst td{font-size:12px;vertical-align:top}
 </div>
 
 <div class="card">
+  <h2>Grid Rundown <span class="count">Master Grid System &mdash; base + mirror grid, every row, column and diagonal, ranked</span></h2>
+  <div class="panelbody" id="gridHost"></div>
+</div>
+
+<div class="card">
   <h2>Brings / Follows <span class="count">when one falls, watch for these &mdash; box or straight</span></h2>
   <div class="panelbody" id="bfPanel">
     <div class="controls" style="margin-top:0;margin-bottom:10px">
@@ -414,5 +419,6 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
 
 </div>
 
-<script src="app-31.js"></script>
+<script>window.GRID_CFG={N:3,top:10,_c:null,_n:-1,seq(){const d=sfDraws(3);if(d.length===this._n)return this._c;const o={};d.forEach(x=>(o[x.c]=o[x.c]||[]).push({d:x.date,s:x.s,n:x.n}));this._n=d.length;return this._c=o;},name:c=>nm(c),look:n=>openLookup(n)};</script>
+<script src="app-32.js"></script>
 </body></html>
