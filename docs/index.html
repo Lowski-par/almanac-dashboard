@@ -419,6 +419,14 @@ A line may carry its own date (10/05/2026, 2026-10-05 or Oct 5, 2026); lines wit
 
 </div>
 
-<script>window.GRID_CFG={N:3,top:10,_c:null,_n:-1,seq(){const d=sfDraws(3);if(d.length===this._n)return this._c;const o={};d.forEach(x=>(o[x.c]=o[x.c]||[]).push({d:x.date,s:x.s,n:x.n}));this._n=d.length;return this._c=o;},name:c=>nm(c),look:n=>openLookup(n)};</script>
+<script>window.GRID_CFG={N:3,top:10,_c:null,_n:-1,_h:new Map(),seq(){const d=sfDraws(3);if(d.length===this._n)return this._c;const o={};d.forEach(x=>(o[x.c]=o[x.c]||[]).push({d:x.date,s:x.s,n:x.n}));this._n=d.length;return this._c=o;},name:c=>nm(c),look:n=>openLookup(n),
+today:()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Chicago'}),
+hotNow(D,st){const key=D+'|'+this._n;if(this._h.has(key))return this._h.get(key);const M=new Map(),add=(b,l)=>{if(!M.has(b))M.set(b,new Set());M.get(b).add(l);};
+try{dspHeatFor(D,7).slice(0,12).forEach(h=>add(sortD(h.num),'Hottest'));}catch(e){}
+const sel=document.getElementById('dsGroup'),keep=sel?sel.value:null;
+for(const [mode,lab] of [['pair','date sum pairs'],['last','last digit pairs']]){if(sel)sel.value=mode;try{dspHot(D,12,false).slice(0,12).forEach(x=>add(x.k,lab));}catch(e){}}
+if(sel)sel.value=keep;
+if(D===this.today()){try{(typeof MR_READY!=='undefined'&&MR_READY||[]).forEach(b=>add(sortD(String(b)),'Mirror Rundown'));}catch(e){}}
+this._h.set(key,M);return M;}};</script>
 <script src="app-32.js"></script>
 </body></html>

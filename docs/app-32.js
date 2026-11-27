@@ -4757,7 +4757,8 @@ function render(){
   if(since){ const after = x => x.d > since.d || (x.d === since.d && x.s === 'e' && since.s === 'm');
     seq.forEach(x => { if(after(x)) (came[srtN(x.n)] = came[srtN(x.n)] || []).push(x.n+' '+x.d.slice(5)); });
     const S = C.seq(); for(const c in S){ if(c === st) continue; for(const x of S[c]) if(x.d > since.d) (cameEl[srtN(x.n)] = cameEl[srtN(x.n)] || []).push(C.name(c)+' '+x.n+' '+x.d.slice(5)); } }
-  const tagsHTML = e => e.tags.map(t => '<i class="grb grb'+t[0]+'">'+t[0]+(t[1]>1?'<small>'+t[1]+'</small>':'')+'</i>').join('');
+  const PD = playDay(), sTag = n => fitsLast(srtN(n), PD) ? '<i class="grb grbS" title="fits today&rsquo;s last digit sum">S</i>' : '';
+  const tagsHTML = e => sTag(e.n) + e.tags.map(t => '<i class="grb grb'+t[0]+'">'+t[0]+(t[1]>1?'<small>'+t[1]+'</small>':'')+'</i>').join('');
   const card = (e, i) => { const cs = came[srtN(e.n)], ce = cameEl[srtN(e.n)];
     return '<button type="button" class="grpick'+(cs?' came':'')+'" style="border-left-color:'+TIERCOL[e.tier]+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+
       '<span class="grn">'+e.n+'</span><span class="grtags"><i class="grb" style="background:'+(e.mirror?'#1D6B3F':'#8A8577')+'">'+(e.mirror?'MIRROR':'BASE')+'</i>'+tagsHTML(e)+'</span>'+
@@ -4768,12 +4769,41 @@ function render(){
   else h += '<div class="note" style="margin:6px 0">Pick a state to add its boosts (hot, overdue, pairs). <b>D</b> = today&rsquo;s date digit '+B.date[0]+' or its mirror '+B.date[1]+'.</div>';
   h += '<div class="grh">Ranked Top '+top+'</div><div class="grgrid">'+G.ranked.slice(0, top).map(card).join('')+'</div>';
   h += '<details style="margin-top:10px"><summary style="cursor:pointer" class="grh">Full list &mdash; all '+G.all.length+' unique numbers (grid order, mirror first)</summary><div class="grfull">'+
-    G.all.map(e => '<span class="grchip'+(e.mirror?' m':'')+(came[srtN(e.n)]?' came':cameEl[srtN(e.n)]?' el':'')+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+e.n+'<small>'+(e.mirror?'M':'B')+'</small></span>').join('')+'</div></details>';
+    G.all.map(e => '<span class="grchip'+(e.mirror?' m':'')+(came[srtN(e.n)]?' came':cameEl[srtN(e.n)]?' el':'')+'" data-n="'+e.n+'" title="'+e.from.join(' · ')+'">'+e.n+'<small>'+(e.mirror?'M':'B')+(fitsLast(srtN(e.n), PD)?' S':'')+'</small></span>').join('')+'</div></details>';
   h += '<div class="note" style="margin-top:8px">Rank order is strict: <b style="color:'+TIERCOL[1]+'">mirror diagonals</b> &rarr; <b style="color:'+TIERCOL[2]+'">numbers in both grids</b> (same box) &rarr; <b style="color:'+TIERCOL[3]+'">other mirror lines</b> &rarr; <b style="color:'+TIERCOL[4]+'">base only</b>; the state boosts only reorder numbers inside a tier. Lines used: every row, every column and both diagonals &mdash; nothing else. Blue cells = main diagonal, orange = anti-diagonal. Red = came in this state since the seed draw (any order); purple = came in another state since then. Tap a number to look it up.'+(C.note ? ' '+C.note : '')+'</div>';
+  if(st) h += '<div class="grh" style="margin-top:16px">This week on the grid &mdash; '+C.name(st)+'</div><div id="grWeek">'+weekHTML(st)+'</div>';
   if(C.hotNow && st) h += '<div class="grh" style="margin-top:16px">Still due on the sum &mdash; '+C.name(st)+'</div><div id="grDue">'+dueHTML(st)+'</div><div id="grDueCheck"><button type="button" class="ghost" id="grDueBtn">Check how this list did the last 14 days (all states)</button></div>';
   out.innerHTML = h;
   const db = $g('grDueBtn'); if(db) db.onclick = () => dueCheck(st);
   out.querySelectorAll('[data-n]').forEach(el => el.onclick = () => { try{ C.look(el.dataset.n); }catch(e){} });
+}
+
+/* This week on the grid (Marcus, Nov 27): every seed of the last 7 days, which picks came (here or elsewhere), which are still out.
+   S = fits today's last digit sum pairs; still-out S picks are the ones to look for today. */
+function weekHTML(st){
+  const q = seqOf(st), S = C.seq(), top = +($g('grTop')||{}).value || C.top, fill = ($g('grDir')||{}).value, PD = playDay();
+  const d = +PD.slice(8,10) % 10, m = MIR(d), pr = (''+d+d)+' '+(''+d+m)+' '+(''+m+m);
+  const rows = [], look = new Map(); let lastSeed = null, hits = 0, n = 0;
+  for(let age = 1; age <= 7; age++){
+    const G = isoAddG(PD, -age); let idx = -1; for(let i = q.length-1; i >= 0; i--) if(q[i].d < G){ idx = i; break; } if(idx < 0) continue;
+    const seed = q[idx]; if(lastSeed === seed) continue; lastSeed = seed;
+    const R = build(grid(seed.n, fill), boosts(st, idx, G), true).ranked.slice(0, top);
+    const after = x => x.d > seed.d || (x.d === seed.d && false);
+    const cells = R.map(e => { const b = srtN(e.n); let here = null, el = null;
+      for(const x of q) if(after(x) && srtN(x.n) === b){ here = x; break; }
+      if(!here) for(const c in S){ if(c === st) continue; for(const x of S[c]) if(x.d > seed.d && srtN(x.n) === b && (!el || x.d < el.x.d)) el = {c, x}; }
+      const sf = fitsLast(b, PD); n++; if(here || el) hits++;
+      if(!here && !el && sf && !look.has(b)) look.set(b, {n:e.n, seed:seed.n, d:seed.d});
+      const tip = here ? 'came here '+here.n+' '+here.d.slice(5) : el ? 'came in '+C.name(el.c)+' '+el.x.n+' '+el.x.d.slice(5) : 'still out everywhere';
+      return '<span class="grchip'+(here ? ' came here' : el ? ' el' : ' out')+'" data-n="'+e.n+'" title="'+tip+'">'+e.n+'<small>'+(here ? ' '+here.d.slice(5) : el ? ' '+C.name(el.c).slice(0,10)+' '+el.x.d.slice(5) : '')+(sf ? ' S' : '')+'</small></span>'; });
+    rows.push('<tr><td style="white-space:nowrap"><b>'+seed.n+'</b><br><span style="color:var(--ink-soft,#666)">'+seed.d.slice(5)+' '+(seed.s==='m'?'mid':seed.s==='e'?'eve':seed.s||'')+'</span></td><td>'+cells.join('')+'</td></tr>');
+  }
+  if(!rows.length) return '<div class="note">No draws for this state in the last week.</div>';
+  const L = [...look.values()];
+  return '<div class="note" style="margin:0 0 6px">Every seed from '+C.name(st)+' in the last 7 days and its Top '+top+'. <b style="color:#B8362B">Red</b> = came here (date shown), <span class="grel">purple</span> = came in another state, <b>bold</b> = still out everywhere. <b>S</b> = fits today&rsquo;s last digit sum (<b>'+pr+'</b>). '+hits+' of '+n+' picks have come somewhere so far.</div>'+
+    '<div style="overflow-x:auto"><table class="grwk" style="border-collapse:collapse;width:100%"><tbody>'+rows.join('')+'</tbody></table></div>'+
+    '<div class="grh" style="margin-top:8px">Look for today &mdash; still out everywhere and on the sum</div>'+
+    (L.length ? '<div class="grfull">'+L.map(x => '<span class="grchip out" data-n="'+x.n+'" title="grid from '+x.seed+' '+x.d.slice(5)+'">'+x.n+'<small> S &middot; from '+x.seed+'</small></span>').join('')+'</div>' : '<div class="note">None this week.</div>');
 }
 
 /* ===== Still due on the sum (Marcus, Nov 26): a grid pick from the last 14 days that has not come in ANY state since,
@@ -4790,7 +4820,7 @@ function dueFor(st, D){
     const G = isoAddG(D, -age); let idx = -1; for(let i = q.length-1; i >= 0; i--) if(q[i].d < G){ idx = i; break; } if(idx < 0) continue;
     const seed = q[idx], R = build(grid(seed.n, ($g('grDir')||{}).value), boosts(st, idx, G), true).ranked.slice(0, top);
     const cameSince = new Set(); for(const c in S) for(const x of S[c]) if(x.d >= G && x.d < D) cameSince.add(srtN(x.n));
-    for(const e of R){ const b = srtN(e.n); if(cameSince.has(b) || out.has(b) || !fitsLast(b, D) || !hot.has(b)) continue; out.set(b, {n:e.n, b, age, seed:seed.n, G, lists:hot.get(b)}); }
+    for(const e of R){ const b = srtN(e.n); if(cameSince.has(b) || out.has(b) || !fitsLast(b, D) || !hot.has(b)) continue; out.set(b, {n:e.n, b, age, seed:seed.n, sd:seed.d, G, lists:hot.get(b)}); }
   }
   return [...out.values()];
 }
@@ -4799,7 +4829,7 @@ function dueHTML(st){
   const d = +D.slice(8,10) % 10, m = MIR(d), pr = (''+d+d)+' '+(''+d+m)+' '+(''+m+m);
   if(!L.length) return '<div class="note">Nothing qualifies for '+D.slice(5)+' (last digit pairs '+pr+'): no grid pick from the last 14 days is still out everywhere, fits the sum, and is on a hot list today.</div>';
   return '<div class="note" style="margin:0 0 6px">For '+D.slice(5)+' &mdash; last digit pairs <b>'+pr+'</b>. Grid picks from '+C.name(st)+'&rsquo;s seeds in the last 14 days that have not come in any state since, fit the sum, and are on today&rsquo;s hot lists.</div><div class="grgrid">'+
-    L.map(x => '<button type="button" class="grpick" style="border-left-color:#B7791F" data-n="'+x.n+'"><span class="grn">'+x.n+'</span><span class="grst">grid from '+x.seed+' ('+x.G.slice(5)+', '+x.age+' day'+(x.age>1?'s':'')+' ago) &middot; still out everywhere &middot; on: '+[...x.lists].join(', ')+'</span></button>').join('')+'</div>';
+    L.map(x => '<button type="button" class="grpick" style="border-left-color:#B7791F" data-n="'+x.n+'"><span class="grn">'+x.n+'</span><span class="grst">grid from '+x.seed+' (drawn '+x.sd.slice(5)+') &middot; still out everywhere &middot; on: '+[...x.lists].join(', ')+'</span></button>').join('')+'</div>';
 }
 function dueCheck(st){
   const el = $g('grDueCheck'); if(!el) return; const S = C.seq(), D0 = playDay(), P = Math.pow(10, N), res = {h:0, e:0, n:0, hits:[]}; let k = 1;
@@ -4819,7 +4849,8 @@ css.textContent = '.grh{font-family:Oswald,sans-serif;text-transform:uppercase;l
  '.grpick.came{background:rgba(255,107,94,.08)}.grpick.came .grn{text-decoration:line-through;text-decoration-color:#FF6B5E}'+
  '.grn{font-family:\'Roboto Mono\',monospace;font-size:22px;font-weight:700;letter-spacing:.12em;line-height:1.1}'+
  '.grtags{display:flex;gap:3px;flex-wrap:wrap}.grb{font-style:normal;font-family:\'Roboto Mono\',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;background:#555}.grb small{font-size:8px;margin-left:1px}'+
- '.grbH{background:#C0392B}.grbO{background:#6B4E16}.grbD{background:#B7791F}.grbP{background:#7A3E9D}'+
+ '.grbH{background:#C0392B}.grbO{background:#6B4E16}.grbD{background:#B7791F}.grbP{background:#7A3E9D}.grbS{background:#0B6E79}'+
+ '.grwk td{vertical-align:top;padding:5px 6px;border-top:1px solid rgba(0,0,0,.08);font-size:12px}.grwk .grchip{display:inline-block;margin:2px 3px 2px 0}.grchip.out{font-weight:700}.grchip.came.here{background:rgba(255,107,94,.08)}'+
  '.grst{font-size:11px;color:var(--ink-soft,#666);line-height:1.35}.grpick.came .grst b{color:#B8362B}'+
  '.grfull{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.grchip{font-family:\'Roboto Mono\',monospace;font-size:14px;border:1px solid rgba(0,0,0,.18);border-radius:4px;padding:2px 6px;cursor:pointer}'+
  '.grel{color:#7A3E9D;font-weight:600}.grchip.el{color:#7A3E9D;border-color:#7A3E9D}.grpick .grst .grel{color:#7A3E9D}'+
