@@ -1725,6 +1725,29 @@ function render(){
   out.querySelectorAll('[data-n]').forEach(el => el.onclick = () => { try{ C.look(el.dataset.n); }catch(e){} });
 }
 
+/* Long-out pieces (Marcus, Nov 27): which pairs (and triads, Pick 4) inside a number are among the state's longest out.
+   Ranked against every pattern of that size in that state's draws on file; shown when in the top 10. */
+const LO_CACHE = new Map();
+function subsOf(b, k){ const out = new Set(), a = b.split(''); const rec = (i, cur) => { if(cur.length === k){ out.add(cur.join('')); return; } for(let j = i; j < a.length; j++) rec(j+1, cur.concat(a[j])); }; rec(0, []); return [...out]; }
+function longOut(st){
+  const q = seqOf(st), key = st+'|'+q.length; if(LO_CACHE.has(key)) return LO_CACHE.get(key);
+  const R = {};
+  for(const k of N >= 4 ? [2,3] : [2]){
+    const all = []; const g = (i, cur) => { if(cur.length === k){ all.push(cur.join('')); return; } for(let d = i; d < 10; d++) g(d, cur.concat(d)); }; g(0, []);
+    const last = {}, cnt = {}; q.forEach((x, i) => { for(const p of subsOf(srtN(x.n), k)){ last[p] = i; cnt[p] = (cnt[p]||0) + 1; } });
+    const out = p => last[p] === undefined ? q.length : q.length - 1 - last[p];
+    const sorted = all.slice().sort((a,b) => out(b) - out(a) || (a < b ? -1 : 1));
+    const M = new Map(); sorted.forEach((p, i) => M.set(p, {rank:i+1, of:all.length, out:out(p), last:last[p] !== undefined ? q[last[p]] : null, gap:cnt[p] ? Math.round(q.length / cnt[p]) : null}));
+    R[k] = M;
+  }
+  LO_CACHE.set(key, R); return R;
+}
+function loNote(b, st, TOP){
+  TOP = TOP || 10; const R = longOut(st), parts = [];
+  for(const k of Object.keys(R).map(Number).sort((a,b) => b-a)) for(const p of subsOf(b, k)){ const e = R[k].get(p); if(e && e.rank <= TOP) parts.push('<b>'+p+'x'.repeat(N-k)+'</b> #'+e.rank+' longest out in '+C.name(st)+' ('+e.out+' draws'+(e.last ? ', since '+e.last.d.slice(5)+' '+e.last.n : '')+(e.gap ? ', usual ~'+e.gap : '')+')'); }
+  return parts.join(' &middot; ');
+}
+
 /* This week on the grid (Marcus, Nov 27): every seed of the last 7 days, which picks came (here or elsewhere), which are still out.
    S = fits today's last digit sum pairs; still-out S picks are the ones to look for today. */
 function weekHTML(st){
@@ -1750,7 +1773,7 @@ function weekHTML(st){
   return '<div class="note" style="margin:0 0 6px">Every seed from '+C.name(st)+' in the last 7 days and its Top '+top+'. <b style="color:#B8362B">Red</b> = came here (date shown), <span class="grel">purple</span> = came in another state, <b>bold</b> = still out everywhere. <b>S</b> = fits today&rsquo;s last digit sum (<b>'+pr+'</b>). '+hits+' of '+n+' picks have come somewhere so far.</div>'+
     '<div style="overflow-x:auto"><table class="grwk" style="border-collapse:collapse;width:100%"><tbody>'+rows.join('')+'</tbody></table></div>'+
     '<div class="grh" style="margin-top:8px">Look for today &mdash; still out everywhere and on the sum</div>'+
-    (L.length ? '<div class="grfull">'+L.map(x => '<span class="grchip out" data-n="'+x.n+'" title="grid from '+x.seed+' '+x.d.slice(5)+'">'+x.n+'<small> S &middot; from '+x.seed+'</small></span>').join('')+'</div>' : '<div class="note">None this week.</div>');
+    (L.length ? '<div class="grfull">'+L.map(x => '<span class="grchip out" data-n="'+x.n+'" title="grid from '+x.seed+' '+x.d.slice(5)+'">'+x.n+'<small> S &middot; from '+x.seed+(loNote(srtN(x.n), st) ? ' &middot; '+loNote(srtN(x.n), st) : '')+'</small></span>').join('')+'</div>' : '<div class="note">None this week.</div>');
 }
 
 /* ===== Still due on the sum (Marcus, Nov 26): a grid pick from the last 14 days that has not come in ANY state since,
@@ -1776,7 +1799,7 @@ function dueHTML(st){
   const d = +D.slice(8,10) % 10, m = MIR(d), pr = (''+d+d)+' '+(''+d+m)+' '+(''+m+m);
   if(!L.length) return '<div class="note">Nothing qualifies for '+D.slice(5)+' (last digit pairs '+pr+'): no grid pick from the last 14 days is still out everywhere, fits the sum, and is on a hot list today.</div>';
   return '<div class="note" style="margin:0 0 6px">For '+D.slice(5)+' &mdash; last digit pairs <b>'+pr+'</b>. Grid picks from '+C.name(st)+'&rsquo;s seeds in the last 14 days that have not come in any state since, fit the sum, and are on today&rsquo;s hot lists.</div><div class="grgrid">'+
-    L.map(x => '<button type="button" class="grpick" style="border-left-color:#B7791F" data-n="'+x.n+'"><span class="grn">'+x.n+'</span><span class="grst">grid from '+x.seed+' (drawn '+x.sd.slice(5)+') &middot; still out everywhere &middot; on: '+[...x.lists].join(', ')+'</span></button>').join('')+'</div>';
+    L.map(x => '<button type="button" class="grpick" style="border-left-color:#B7791F" data-n="'+x.n+'"><span class="grn">'+x.n+'</span><span class="grst">grid from '+x.seed+' (drawn '+x.sd.slice(5)+') &middot; still out everywhere &middot; on: '+[...x.lists].join(', ')+(loNote(x.b, st) ? '<br><span class="grlo">'+loNote(x.b, st)+'</span>' : '')+'</span></button>').join('')+'</div>';
 }
 function dueCheck(st){
   const el = $g('grDueCheck'); if(!el) return; const S = C.seq(), D0 = playDay(), P = Math.pow(10, N), res = {h:0, e:0, n:0, hits:[]}; let k = 1;
@@ -1796,14 +1819,14 @@ css.textContent = '.grh{font-family:Oswald,sans-serif;text-transform:uppercase;l
  '.grpick.came{background:rgba(255,107,94,.08)}.grpick.came .grn{text-decoration:line-through;text-decoration-color:#FF6B5E}'+
  '.grn{font-family:\'Roboto Mono\',monospace;font-size:22px;font-weight:700;letter-spacing:.12em;line-height:1.1}'+
  '.grtags{display:flex;gap:3px;flex-wrap:wrap}.grb{font-style:normal;font-family:\'Roboto Mono\',monospace;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:#fff;background:#555}.grb small{font-size:8px;margin-left:1px}'+
- '.grbH{background:#C0392B}.grbO{background:#6B4E16}.grbD{background:#B7791F}.grbP{background:#7A3E9D}.grbS{background:#0B6E79}'+
+ '.grbH{background:#C0392B}.grbO{background:#6B4E16}.grbD{background:#B7791F}.grbP{background:#7A3E9D}.grbS{background:#0B6E79}.grlo{color:#8A4B00}.grlo b{font-family:\'Roboto Mono\',monospace}'+
  '.grwk td{vertical-align:top;padding:5px 6px;border-top:1px solid rgba(0,0,0,.08);font-size:12px}.grwk .grchip{display:inline-block;margin:2px 3px 2px 0}.grchip.out{font-weight:700}.grchip.came.here{background:rgba(255,107,94,.08)}'+
  '.grst{font-size:11px;color:var(--ink-soft,#666);line-height:1.35}.grpick.came .grst b{color:#B8362B}'+
  '.grfull{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.grchip{font-family:\'Roboto Mono\',monospace;font-size:14px;border:1px solid rgba(0,0,0,.18);border-radius:4px;padding:2px 6px;cursor:pointer}'+
  '.grel{color:#7A3E9D;font-weight:600}.grchip.el{color:#7A3E9D;border-color:#7A3E9D}.grpick .grst .grel{color:#7A3E9D}'+
  '.grchip.m{border-color:#1D6B3F;background:rgba(29,107,63,.08)}.grchip.came{text-decoration:line-through;color:#B8362B}.grchip small{font-size:9px;margin-left:3px;opacity:.7}';
 document.head.appendChild(css);
-window.renderGridN = render; window.gridBuild = (seed, cw, st) => build(grid(seed, cw), boosts(st||''), !!st);
+window.renderGridN = render; window.gridLoNote = loNote; window.gridBuild = (seed, cw, st) => build(grid(seed, cw), boosts(st||''), !!st);
 setInterval(() => { try{ const S = C.seq(), n = Object.values(S).reduce((a,b) => a + (b||[]).length, 0); if(n !== lastCount){ lastCount = n; render(); } }catch(e){} }, 2000);
 try{ render(); }catch(e){}
 })();
