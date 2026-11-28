@@ -608,3 +608,114 @@ function renderFlip(){
 let SY_FLIP_LAST = [];
 document.addEventListener('click', e => { const b = e.target.closest('[data-sycopy="flip"]'); if(b) syCopy(SY_FLIP_LAST.join(' '), 'flipCopied', SY_FLIP_LAST.length + ' boxes'); });
 (function(){ const base = renderAll; renderAll = function(){ base(); try{ renderFlip(); }catch(err){ console.error(err); } }; })();
+
+/* ══ DATE SUM HOT LIST (Marcus, Nov 28) ══
+   For the day and version picked in the Date sums panel: every number in that date sum family, run through every system
+   on this page, ranked. Like the Pick 3 / Pick 4 date sum columns: what triggered it (the last 14 days, recent counts more),
+   what is on Today's board, what is due (longest out, ready Mirror Doubles, open strong mirrors), and what is one flip away.
+   Score: each draw that named the number adds (systems it used) x recency (3 days 1.0, 4-7 days 0.6, 8-14 days 0.3);
+   + its Today's board systems; + 1 each for a ready Mirror Doubles set, a longest-out triad (any state's top 3) or four
+   (all states' top 10), a draw one flip away in the last 3 days; + 2 for an open mirror backed by 7+ systems.
+   Numbers that already came since the window opened are marked, not dropped. A shortlist, not a prediction: each piece
+   has tested at about chance on its own. Live test: the top 10 for the last digit triads, built only from earlier draws,
+   checked against that day's draws, from Nov 28, 2026. */
+const SY_SS = new Map();
+function sySS(n){ if(!SY_SS.has(n)) SY_SS.set(n, sySeedSystems(n)); return SY_SS.get(n); }
+let SY_DH_FILTER = '', SY_DH_WIN = (function(){ try{ return localStorage.getItem('dsWin') || '0'; }catch(e){ return '0'; } })();
+const SY_DH_BOARD = new Map();
+/* ±1 day window: the hot lists for yesterday's, today's and tomorrow's date sums (top 5 each), merged.
+   Month look back (Oct 29 – Nov 27): last digit triads came 20 vs 13.6 by chance within 3 days; last digit pairs 25 vs 26.4;
+   date sum pairs 13 vs 15.2. Five years: yesterday's/tomorrow's lists 0.92–1.04x. Not proven; the live tile decides. */
+function syDsHotPm(iso, id, opts){
+  opts = opts || {}; const k = opts.top || 5, out = [], seen = new Set();
+  for(const [lab, off] of [['today', 0], ['tomorrow', 1], ['yesterday', -1]]){ const dd = syShift(iso, off), sp = syDsSpec(id, dd);
+    for(const e of syDsHot(iso, sp, {strict:opts.strict, top:k, only: off === 0 ? opts.only : ''})){ if(seen.has(e.k)) continue; seen.add(e.k); e.from = lab; e.fromDay = dd; e.fromShow = sp.show.join(' '); out.push(e); } }
+  return out;
+}
+
+function syDsHot(iso, spec, opts){
+  opts = opts || {}; const strict = !!opts.strict, t1 = dnum(iso), top = opts.top || 15;
+  const inc = x => strict ? x.d < iso : x.d <= iso;
+  const win = bfAll().filter(x => inc(x) && dnum(x.d) > t1 - 15);
+  const fit = k => syMatch(k, spec) && (!opts.only || syHas(k, opts.only));
+  const E = new Map(), get = k => { let e = E.get(k); if(!e){ e = {k, score:0, trig:[], why:new Set(), extra:[]}; E.set(k, e); } return e; };
+  for(const x of win){ const age = t1 - dnum(x.d), w = age <= 3 ? 1 : age <= 7 ? 0.6 : 0.3;
+    for(const [k, s] of sySS(x.n)){ if(!fit(k)) continue; const e = get(k); e.score += s.size * w; e.trig.push({x, s:[...s], age}); s.forEach(v => e.why.add(v)); } }
+  // Today's board
+  const prevDay = syShift(iso, -1), bk = iso + '|' + strict + '|' + bfAll().length;
+  let B = SY_DH_BOARD.get(bk); if(!B){ B = syBoard(iso, strict ? prevDay : iso, 3000); SY_DH_BOARD.set(bk, B); }
+  for(const r of B.rows) if(fit(r.k)){ const e = get(r.k); e.score += r.n; e.board = r.n; }
+  // due / ready
+  const asOf = strict ? prevDay : iso;
+  const longT = syUniq(syStates().flatMap(c => syLongest(c, asOf, 3).map(z => z.t))), longQ = syLongest('', asOf, 10, 4).map(z => z.t);
+  const mdRest = syMdState(asOf, '', 7).filter(z => z.ready).flatMap(z => z.rest);
+  const strongM = new Map(); for(const x of win){ if(dnum(x.d) <= t1 - 7) continue; const M = srt(mirror(x.n)); if(M === srt(x.n) || !fit(M)) continue; const s = sySS(x.n).get(M); if(s && s.size >= 7) strongM.set(M, x); }
+  const flips = new Map(); for(const x of win){ if(dnum(x.d) <= t1 - 3) continue; for(const v of syFlipOne(x.n)){ const k = srt(v); if(fit(k)) flips.set(k, x); } }
+  for(const e of E.values()){
+    if(mdRest.some(p => syHas(e.k, p))){ e.score += 1; e.extra.push('ready Mirror Doubles'); }
+    if(longT.some(t => syHas(e.k, t))){ e.score += 1; e.extra.push('longest-out triad'); }
+    if(longQ.some(t => syHas(e.k, t))){ e.score += 1; e.extra.push('longest-out four'); }
+    if(flips.has(e.k)){ e.score += 1; const x = flips.get(e.k); e.extra.push(`one flip from ${x.n} ${x.c.toUpperCase()}`); }
+    if(strongM.has(e.k)){ e.score += 2; const x = strongM.get(e.k); e.extra.push(`open mirror of ${x.n} ${x.c.toUpperCase()} (7+ systems)`); }
+    const first = e.trig.length ? e.trig.reduce((a, b) => (a.x.d < b.x.d ? a : b)).x : null;
+    e.came = first ? (BOXIDX.get(e.k) || []).find(y => syLater(y, first) && (strict ? y.d < iso : y.d <= iso)) : null;
+  }
+  return [...E.values()].sort((a, b) => b.score - a.score || ways(b.k) - ways(a.k) || a.k.localeCompare(b.k)).slice(0, top);
+}
+let SY_DH_LAST = [];
+function renderDsHot(){
+  if(!$('dsHot') || !Object.keys(SEQ).length) return;
+  const id = $('dsVer').value || 'last3', iso = $('dsDay').value || syPlayDay(), sp = syDsSpec(id, iso);
+  // every version's call for the day, clickable
+  let h = '<div class="sub-h">Every date sum for ' + fmtShort(iso) + ' · tap one</div><div class="chips">' + SY_DS.map(V => { const s = syDsSpec(V.id, iso);
+    return `<button type="button" class="chip${V.id === id ? ' hot' : ''}" data-dsver="${V.id}">${esc(s.show.join(' '))}<small>${esc(V.name)}</small></button>`; }).join('') + '</div>';
+  if(sp.k === 'pat' && sp.v.length > 1) h += '<div class="chips" style="margin-top:6px"><span style="font-size:12.5px;color:var(--muted);align-self:center">Narrow to</span>' + ['', ...sp.v].map(p => `<button type="button" class="chip${SY_DH_FILTER === p ? ' hot' : ''}" data-dsonly="${p}">${p ? p + 'x'.repeat(5 - p.length) : 'all'}</button>`).join('') + '</div>';
+  const only = sp.k === 'pat' && sp.v.includes(SY_DH_FILTER) ? SY_DH_FILTER : '';
+  const pm = SY_DH_WIN === '1';
+  h += '<div class="chips" style="margin-top:6px"><span style="font-size:12.5px;color:var(--muted);align-self:center">Window</span>' + [['0', 'Today’s sum only'], ['1', '±1 day (yesterday’s, today’s, tomorrow’s sums)']].map(([v, t]) => `<button type="button" class="chip${SY_DH_WIN === v ? ' hot' : ''}" data-dswin="${v}">${t}</button>`).join('') + '</div>';
+  const t0 = performance.now(), L = pm ? syDsHotPm(iso, id, {only, top:5}) : syDsHot(iso, sp, {only, top:15});
+  if(pm){ const ys = syDsSpec(id, syShift(iso, -1)).show.join(' '), ts = syDsSpec(id, syShift(iso, 1)).show.join(' ');
+    h += `<div class="sub-h">Hottest within a day of ${fmtShort(iso)} · top 5 each from yesterday’s sum (${esc(ys)}), today’s (${esc(only ? only + 'x'.repeat(5 - only.length) : sp.show.join(' '))}) and tomorrow’s (${esc(ts)})</div>`;
+    h += `<div class="note" style="margin-top:0">Play-early view: the “tomorrow” rows are tomorrow’s date sum, so you can get in a day before. A call counts as a hit if it comes today or in the next two days.</div>`; }
+  else h += `<div class="sub-h">Hottest for ${esc(only ? only + 'x'.repeat(5 - only.length) : sp.show.join(' '))} · everything on this page, last 14 days</div>`;
+  h += L.length ? '<div class="tw"><table class="t" style="font-size:13px"><thead><tr><th>#</th><th>Box</th><th>Score</th>' + (pm ? '<th>Sum from</th>' : '') + '<th>What triggered it</th><th>Also</th><th>Came?</th></tr></thead><tbody>' + L.map((e, i) => {
+    const trig = e.trig.slice().sort((a, b) => a.age - b.age).slice(0, 4).map(t => `<span class="mono">${t.x.n}</span> ${esc(t.x.c.toUpperCase())} ${fmtShort(t.x.d)} <span style="color:var(--muted)">(${esc(t.s.join(', '))})</span>`).join('<br>') + (e.trig.length > 4 ? `<br><span style="color:var(--muted)">+${e.trig.length - 4} more</span>` : '');
+    const also = [e.board ? `Today's board: ${e.board} systems` : '', ...e.extra].filter(Boolean).map(esc).join('<br>');
+    return `<tr${i < 5 && !e.came ? ' class="top"' : ''}><td class="num">${i + 1}</td><td class="n"><span class="chip" data-look="${e.k}" style="border:0;padding:0;background:none">${e.k}</span><span class="tag">${ways(e.k)}w</span></td><td class="num">${e.score.toFixed(1)}</td>${pm ? `<td style="font-size:12.5px">${esc(e.from)}<br><span style="color:var(--muted)">${fmtShort(e.fromDay)} · ${esc(e.fromShow)}</span></td>` : ''}<td style="font-size:12.5px">${trig || '<span style="color:var(--muted)">—</span>'}</td><td style="font-size:12.5px">${also || '—'}</td><td style="font-size:12.5px">${e.came ? `<span class="mk x">✕</span> ${e.came.n} ${esc(e.came.c.toUpperCase())} ${fmtShort(e.came.d)}` : '<span class="mk ok">✓</span> open'}</td></tr>`; }).join('') + '</tbody></table></div>'
+    : `<div class="empty">${sp.k === 'pat' ? 'Nothing on this page points at these numbers right now.' : 'Nothing on this page points at numbers with this sum right now.'}</div>`;
+  h += `<div class="ctl" style="margin-top:8px"><button class="btn primary" type="button" data-dhcopy="1">Copy the open ones</button><span id="dhCopied" style="color:var(--good);font-size:13px" aria-live="polite"></span></div>`;
+  // live test (last digit triads, top 10, strictly earlier draws)
+  const LT = syDhLive();
+  h += `<div class="tiles" style="margin-top:8px"><div class="tile"><div class="k">Live test from ${fmtShort(SY_DH_LIVE)}: top 10 for the last digit triads, that day</div><div class="v">${LT[0]} / ${LT[1].toFixed(2)}</div><div class="k">${LT[2]} day${LT[2] === 1 ? '' : 's'} graded · came vs chance</div></div>` + (()=>{ const P = syDhLivePm(); return `<div class="tile"><div class="k">Live test from ${fmtShort(SY_DH_LIVE)}: ±1 day list for the last digit triads, that day or the next two</div><div class="v">${P[0]} / ${P[1].toFixed(2)}</div><div class="k">${P[2]} day${P[2] === 1 ? '' : 's'} graded (${P[3]} still inside their 3 days) · came vs chance</div></div>`; })() + `</div>`;
+  h += '<div class="note">How the score works: every draw in any state from the last 14 days that named the number adds its systems (Endeavor and the other rundowns, 67867, 34534, mirror, mirror mixes, Lottery Post 814 and projection, Grid 5 base and mirror grids, GA Rundown when it is on the board), counting full in the last 3 days, 60% for 4&ndash;7 days back and 30% for 8&ndash;14. Then it adds its Today&rsquo;s board systems, +1 for a ready Mirror Doubles set, a longest-out triad or four, or a draw one flip away in the last 3 days, and +2 for an open mirror backed by 7+ systems. Tap a number to look it up. Honest reading: each piece has tested at about chance on its own, so this is a shortlist of what the systems agree on, not a forecast. The live tile grades it from today on. ±1 day: some players say a date sum can land the day before or after. Over five years yesterday’s and tomorrow’s lists tested at 0.92&ndash;1.04× chance; in the last month the last digit triads version caught 20 against 13.6 within 3 days, but the pair versions did not. The second tile tracks it from today.</div>';
+  $('dsHot').innerHTML = h; SY_DH_LAST = L.filter(e => !e.came).map(e => e.k);
+  if($('dsHotMs')) $('dsHotMs').textContent = Math.round(performance.now() - t0) + ' ms';
+}
+const SY_DH_LIVE = '2026-11-28', SY_DH_CACHE = new Map();
+const SY_DH_CACHE2 = new Map();
+function syDhLivePm(){
+  const R = [0, 0, 0, 0], last = DATES[DATES.length - 1];
+  for(const d of DATES.filter(x => x >= SY_DH_LIVE && x < last)){
+    const key = d + '|' + bfAll().length; let r = SY_DH_CACHE2.get(key);
+    if(!r){ const S = new Set(syDsHotPm(d, 'last3', {strict:true, top:5}).map(e => e.k)), came = new Set(); let n = 0, open = false;
+      for(let i = 0; i < 3; i++){ const dd = syShift(d, i); if(dd >= last){ open = true; break; } for(const x of syDrawsOn(dd, '')){ n++; if(S.has(srt(x.n))) came.add(srt(x.n)); } }
+      let ex = 0; S.forEach(k => ex += 1 - Math.pow(1 - ways(k) / 1e5, n)); r = [came.size, ex, open]; SY_DH_CACHE2.set(key, r); }
+    R[0] += r[0]; R[1] += r[1]; R[2]++; if(r[2]) R[3]++; }
+  return R;
+}
+function syDhLive(){
+  const R = [0, 0, 0], last = DATES[DATES.length - 1];
+  for(const d of DATES.filter(x => x >= SY_DH_LIVE && x < last)){
+    const key = d + '|' + bfAll().length; let r = SY_DH_CACHE.get(key);
+    if(!r){ const L = syDsHot(d, syDsSpec('last3', d), {strict:true, top:10}), S = new Set(L.map(e => e.k)); let sh = 0; S.forEach(k => sh += ways(k)); sh /= 1e5;
+      const dr = syDrawsOn(d, ''); r = [dr.filter(x => S.has(srt(x.n))).length, dr.length * sh]; SY_DH_CACHE.set(key, r); }
+    R[0] += r[0]; R[1] += r[1]; R[2]++; }
+  return R;
+}
+document.addEventListener('click', e => {
+  const v = e.target.closest('[data-dsver]'); if(v){ $('dsVer').value = v.dataset.dsver; store('dsVer', v.dataset.dsver); SY_DH_FILTER = ''; renderDS(); return; }
+  const w = e.target.closest('[data-dswin]'); if(w){ SY_DH_WIN = w.dataset.dswin; try{ localStorage.setItem('dsWin', SY_DH_WIN); }catch(err){} renderDsHot(); return; }
+  const o = e.target.closest('[data-dsonly]'); if(o){ SY_DH_FILTER = o.dataset.dsonly; renderDsHot(); return; }
+  if(e.target.closest('[data-dhcopy]')) syCopy(SY_DH_LAST.join(' '), 'dhCopied', SY_DH_LAST.length + ' boxes');
+});
+(function(){ const base = renderDS; renderDS = function(){ base(); try{ renderDsHot(); }catch(err){ console.error(err); if($('dsHot')) $('dsHot').innerHTML = '<div class="empty">The hot list could not load.</div>'; } }; })();
