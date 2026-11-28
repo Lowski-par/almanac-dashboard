@@ -365,6 +365,7 @@ function syBoard(P, seedTo, top){
     for(const k of syMixBoxes(x.n)) put(k, 'Mirror mixes');
     if(typeof lpKeys === 'function'){ try{ for(const k of lpKeys(x.n, 'rund').keys()) put(k, 'Lottery Post 814 rundown'); for(const k of lpKeys(x.n, 'proj').keys()) put(k, 'Lottery Post projection'); }catch(e){} }
     if(typeof g5Spiral === 'function'){ const MG = g5Map(g5Spiral(x.n, false), g5Mir); for(const [, l] of g5Lines(MG)) put(srt(l), 'Grid 5 mirror grid'); }
+    if(typeof gaPlayBoxes === 'function'){ try{ for(const k of gaPlayBoxes(x.n, P)) put(k, 'GA Rundown'); }catch(e){} }   // GA Rundown (Grid System) play list from this draw, date digit of the play day (Marcus, Nov 28)
   }
   if(typeof BF_RULES !== 'undefined') for(const r of BF_RULES.concat(typeof BF_MINE !== 'undefined' ? BF_MINE : [])) for(const e of bfRecent(r, seedTo, 7)){ const sd = {...e.x, fired:[]}; for(const f of r.fol) for(const k of bfFam(f)) add(k, 'Brings & follows', sd); }
   // pattern systems for the play day, from what was known by seedTo
@@ -391,7 +392,7 @@ function syBoard(P, seedTo, top){
   rows.sort((a, b) => b.n - a.n || b.st.size - a.st.size || ways(b.k) - ways(a.k) || a.k.localeCompare(b.k));
   return {rows:rows.slice(0, top || 20), seeds, fired:seeds.filter(x => x.fired.length), total:rows.length, P};
 }
-const SY_BL = {'Last digit triads':'D', 'Date sum':'S', 'Date sum pairs':'S', 'Date sum fired':'F', 'Longest-out triads':'P', 'Longest-out fours':'Q', 'Mirror Doubles':'M', 'Mirror mixes':'X', 'Mirror':'X', 'Lottery Post 814 rundown':'L', 'Lottery Post projection':'L', 'Brings & follows':'B', 'Grid 5 mirror grid':'G'};
+const SY_BL = {'Last digit triads':'D', 'Date sum':'S', 'Date sum pairs':'S', 'Date sum fired':'F', 'Longest-out triads':'P', 'Longest-out fours':'Q', 'Mirror Doubles':'M', 'Mirror mixes':'X', 'Mirror':'X', 'Lottery Post 814 rundown':'L', 'Lottery Post projection':'L', 'Brings & follows':'B', 'Grid 5 mirror grid':'G', 'GA Rundown':'A'};
 let SY_BOARD_LAST = [], SY_BT = {key:null, rows:null, running:false};
 function renderBoard(){
   if(!$('boardOut')) return;
@@ -508,6 +509,7 @@ document.addEventListener('change', e => { if(['mwDays', 'mwMin'].includes(e.tar
    2-30 days later): build-up (most-named boxes over 14 days) top 10 1.11x but later days 1.15x — no timing signal;
    one flip away from the day's draws 1.06x vs 1.00x later (2 of 15 later days as high) — a lean, not proven.
    So the report is context: it explains a number, it does not push it up Today's board. */
+function ways4(b){ const c = {}; for(const d of b) c[d] = (c[d] || 0) + 1; let w = 24; for(const v of Object.values(c)) for(let k = 2; k <= v; k++) w /= k; return w; }
 function syFlipOne(n){ const out = []; for(let p = 0; p < 5; p++) out.push(n.slice(0, p) + SY_M(n[p]) + n.slice(p + 1)); return out; }
 function syP4Share(digits){ const key = 'p4|' + digits; if(SY_SH.has(key)) return SY_SH.get(key); let c = 0;
   for(let i = 0; i < 1e4; i++){ const s = String(i).padStart(4, '0'); if(syP4Hit(s, digits)) c++; } SY_SH.set(key, c / 1e4); return c / 1e4; }
@@ -549,12 +551,29 @@ function renderWhy(){
   // 6 coming dates
   const cal = []; for(let k = 0; k <= 7; k++){ const d = syShift(asOf, k), hits = ['last3', 'md', 'mdy', 'rmd', 'rmdy'].filter(id => syMatch(N, syDsSpec(id, d))).map(id => SY_DS.find(v => v.id === id).name); if(hits.length) cal.push(`<b>${fmtShort(d)}</b>: ${esc(hits.join(', '))}`); }
   h += sec('Date sums that call it · today and the next 7 days', cal.length ? `<div style="font-size:13.5px;line-height:1.6">${cal.join('<br>')}</div>` : '<div class="empty">No date sum calls it this week.</div>');
+  // 6b near misses, Pick 4 triggers, grid lines one digit off (last 14 days)
+  const shareN = a => { const x = K.split(''); let k = 0; for(const ch of a){ const i = x.indexOf(ch); if(i >= 0){ x.splice(i, 1); k++; } } return k; };
+  const nearKey = 'near|' + K; let nearShare = SY_SH.get(nearKey); if(nearShare === undefined){ let c4 = 0; for(let i = 0; i < 1e5; i++) if(shareN(String(i).padStart(5, '0')) === 4) c4++; nearShare = c4 / 1e5; SY_SH.set(nearKey, nearShare); }
+  const w14 = all.filter(x => inWin(x, 14)), near = w14.filter(x => shareN(x.n) === 4);
+  h += sec(`Near misses · Pick 5 draws holding 4 of its 5 digits · last 14 days, every state`, (near.length ? '<div class="chips">' + near.slice().reverse().map(x => `<span class="chip${c && x.c === c ? ' hot' : ''}" data-look="${x.n}">${x.n}<small>${esc(x.c.toUpperCase())} ${fmtShort(x.d)}</small></span>`).join('') + '</div>' : '<div class="empty">None.</div>') + `<div class="note" style="margin-top:4px">${near.length} vs ${(w14.length * nearShare).toFixed(1)} by chance in ${w14.length} draws.</div>`);
+  const cnt = {}; for(const ch of N) cnt[ch] = (cnt[ch] || 0) + 1;
+  const tripD = Object.keys(cnt).filter(d => cnt[d] >= 3), subs4 = [...sySubs(K, 4)];
+  const p4trip = [], p4four = []; let p4n14 = 0;
+  for(const [d, m] of P4DAY){ const t = dnum(d); if(t > t1 || t <= t1 - 14) continue; for(const cc in m) for(const x of m[cc]){ p4n14++;
+    if(tripD.some(dd => x.n.split(dd).length - 1 >= 3)) p4trip.push({d, c:cc, n:x.n}); else if(subs4.includes(srt(x.n))) p4four.push({d, c:cc, n:x.n}); } }
+  const tripShare = tripD.length ? tripD.length * 37 / 1e4 : 0, fourShare = subs4.reduce((a, q) => a + ways4(q), 0) / 1e4;
+  const p4chips = L => L.sort((a, b) => a.d < b.d ? 1 : -1).map(x => `<span class="chip"><span>${x.n}</span><small>${esc(x.c.toUpperCase())} ${fmtShort(x.d)}</small></span>`).join('');
+  h += sec('Pick 4 triggers · last 14 days, every state', `<div style="font-size:13.5px">${tripD.length ? `Pick 4 triples of ${tripD.map(d => d + d + d).join(' / ')} (the Pick 4 → Pick 5 trigger): <b>${p4trip.length}</b> vs ${(p4n14 * tripShare).toFixed(1)} by chance` : 'It has no triple, so no Pick 4 triple trigger applies'}.${p4trip.length ? '<div class="chips" style="margin:4px 0">' + p4chips(p4trip) + '</div>' : ''}<br>Pick 4 draws holding four of its digits (${subs4.join(', ')}): <b>${p4four.length}</b> vs ${(p4n14 * fourShare).toFixed(1)} by chance.${p4four.length ? '<div class="chips" style="margin:4px 0">' + p4chips(p4four) + '</div>' : ''}</div>`);
+  const gnear = []; let glines = 0;
+  for(const x of mine){ if(!inWin(x, 14)) continue; const B = g5Spiral(x.n, false), MG = g5Map(B, g5Mir);
+    for(const [gn, g] of [['base', B], ['mirror', MG]]) for(const [lab, l] of g5Lines(g)){ if(gn === 'base' && lab === 'diagonal') continue; glines++; if(shareN(l) === 4) gnear.push(`${l} · ${x.c.toUpperCase()} ${x.n} ${fmtShort(x.d)} · ${gn} ${lab}`); } }
+  h += sec(`Grid 5 lines one digit off · last 14 days, ${where}`, (gnear.length ? `<div style="font-size:13px;line-height:1.6">${gnear.slice(-12).reverse().map(esc).join('<br>')}${gnear.length > 12 ? `<br><span style="color:var(--muted)">+${gnear.length - 12} more</span>` : ''}</div>` : '<div class="empty">None.</div>') + `<div class="note" style="margin-top:4px">${gnear.length} of ${glines} grid lines vs ${(glines * nearShare).toFixed(1)} by chance (grid rows and columns rarely repeat a digit, so numbers with doubles or triples land one-off less often).</div>`);
   // 7 grid
   const gr = []; for(const x of mine){ if(!inWin(x, 30)) continue; const B = g5Spiral(x.n, false), MG = g5Map(B, g5Mir);
     for(const [gn, g] of [['Base', B], ['Mirror', MG]]) for(const [lab, l] of g5Lines(g)) if(srt(l) === K) gr.push(`${x.n} ${x.c.toUpperCase()} ${fmtShort(x.d)} · ${gn} ${lab} (${l})`); }
   h += sec(`Grid 5 · every draw in the last 30 days, ${where}`, gr.length ? `<div style="font-size:13.5px">${gr.map(esc).join('<br>')}</div>` : '<div class="empty">No grid line produced it.</div>');
   // verdict
-  const pts = [named.length ? `${named.length} single-system mention${named.length > 1 ? 's' : ''}` : '', flips.length ? `${flips.length} draw${flips.length > 1 ? 's' : ''} one flip away` : '', md.some(z => z.ready && z.rest.some(p => syHas(K, p))) ? 'a ready Mirror Doubles set' : '', p4m > p4n * sM * 1.25 ? 'Pick 4 heavy on its mirror digits' : '', cal.length ? `date sums on ${cal.length} day${cal.length > 1 ? 's' : ''} this week` : '', gr.length ? 'Grid 5 lines' : ''].filter(Boolean);
+  const pts = [named.length ? `${named.length} single-system mention${named.length > 1 ? 's' : ''}` : '', flips.length ? `${flips.length} draw${flips.length > 1 ? 's' : ''} one flip away` : '', md.some(z => z.ready && z.rest.some(p => syHas(K, p))) ? 'a ready Mirror Doubles set' : '', p4m > p4n * sM * 1.25 ? 'Pick 4 heavy on its mirror digits' : '', cal.length ? `date sums on ${cal.length} day${cal.length > 1 ? 's' : ''} this week` : '', gr.length ? 'Grid 5 lines' : '', near.length > w14.length * nearShare * 1.5 ? `${near.length} near misses (4 of 5)` : '', p4trip.length > p4n14 * tripShare * 1.5 && p4trip.length >= 2 ? `${p4trip.length} Pick 4 triple triggers` : ''].filter(Boolean);
   h = `<div class="note" style="margin:0 0 10px;font-size:13.5px;color:var(--ink)"><b>In short:</b> ${pts.length ? 'what points at it — ' + pts.join(' · ') + '.' : 'nothing on this page points at it right now.'} None of these pieces has beaten chance in testing; together they explain why a number feels "around," not that it will come.</div>` + h;
   h += '<div class="note">Tested before this went in, on every Pick 5 day since Aug 2021: the most-named boxes over 14 days ran 1.11&times; the next day but 1.15&times; on later days too, so there is no timing signal; numbers one flip from the day\'s draws ran 1.06&times; the next day against 1.00&times; on later days (a lean, not proven). So this report explains a number; it does not move it up Today\'s board.</div>';
   $('whyOut').innerHTML = h;

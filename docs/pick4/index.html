@@ -48,6 +48,7 @@
     <button class="ghost" data-tab="need" onclick="showTab('need')">State Specific BAAABY</button>
     <button class="ghost" data-tab="mirr" onclick="showTab('mirr')">Mirror Doubles</button>
     <button class="ghost" data-tab="grid" onclick="showTab('grid')">Grid Rundown</button>
+    <button class="ghost" data-tab="cons" onclick="showTab('cons')">Consensus</button>
     <button class="ghost" data-tab="log" onclick="showTab('log')">Hit Log</button>
   </div>
 
@@ -229,6 +230,12 @@
   <section id="tab-grid" class="card" hidden>
     <h2>Grid Rundown <span class="count">Master Grid System &mdash; 4&times;4 base + mirror grid, every row, column and diagonal, ranked</span></h2>
     <div id="gridHost" style="margin-top:10px"></div>
+    <h2 style="margin-top:22px">GA Rundown <span class="count">the Grid System &mdash; photo / circled system: +1 rundown, date sum digit circled, play list</span></h2>
+    <div id="gaHost" style="margin-top:10px"></div>
+  </section>
+  <section id="tab-cons" class="card" hidden>
+    <h2>Consensus <span class="count">every system together &mdash; numbers ranked by how many systems point at them</span></h2>
+    <div id="consHost" style="margin-top:10px"></div>
   </section>
   <section id="tab-log" class="card" hidden>
     <h2>Hit Log <span class="count">is each signal actually helping?</span></h2>
@@ -246,6 +253,9 @@
 </div>
 <script src="tree.js"></script>
 <script src="app.js"></script>
+<script src="garun-1.js"></script>
+<script src="cons-p4.js"></script>
+<script src="consensus-1.js"></script>
 </body></html>
 
 </body></html>

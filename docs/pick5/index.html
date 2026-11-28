@@ -177,7 +177,7 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
       <label>Check the last <select id="boardDays"><option value="14">14 days</option><option value="30" selected>30 days</option><option value="60">60 days</option><option value="365">365 days (slower)</option></select></label>
     </div>
     <div id="boardOut"><div class="empty">Loading draws&hellip;</div></div>
-    <div class="note"><b>R</b> rundowns (Endeavor and the workbook's others, 67867, 34534) &middot; <b>X</b> mirror and mirror mixes &middot; <b>L</b> Lottery Post 814 rundown and projection &middot; <b>B</b> Brings &amp; follows &middot; <b>G</b> Grid 5 mirror grid lines (rows, columns, diagonals) &middot; <b>F</b> made from a draw that hit a date sum &middot; <b>D</b> holds today's last digit triads &middot; <b>S</b> today's date sum or date sum pairs &middot; <b>P</b> longest-out triads &middot; <b>Q</b> longest-out fours (all states) &middot; <b>M</b> a ready Mirror Doubles set. Pick an earlier day under "Draws for" to see that day's board.</div>
+    <div class="note"><b>R</b> rundowns (Endeavor and the workbook's others, 67867, 34534) &middot; <b>X</b> mirror and mirror mixes &middot; <b>L</b> Lottery Post 814 rundown and projection &middot; <b>B</b> Brings &amp; follows &middot; <b>G</b> Grid 5 mirror grid lines (rows, columns, diagonals) &middot; <b>A</b> GA Rundown play list (the Grid System: +1 rundown, date sum digit circled) &middot; <b>F</b> made from a draw that hit a date sum &middot; <b>D</b> holds today's last digit triads &middot; <b>S</b> today's date sum or date sum pairs &middot; <b>P</b> longest-out triads &middot; <b>Q</b> longest-out fours (all states) &middot; <b>M</b> a ready Mirror Doubles set. Pick an earlier day under "Draws for" to see that day's board.</div>
     <div class="sub-h">How the board has done</div>
     <div id="boardCheck"></div>
   </div>
@@ -220,6 +220,10 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
     <div class="sub-h">How the grids have done</div>
     <div id="g5Card"></div>
   </div>
+</details>
+
+<details class="panel" open id="pGA"><summary><h2>GA Rundown</h2><span class="sub">the Grid System &mdash; photo / circled system: +1 rundown, date sum digit circled, play list</span></summary>
+  <div class="pbody"><div id="gaHost"></div></div>
 </details>
 
 <details class="panel" open id="pGW"><summary><h2>Grid + date sum watch</h2><span class="sub">each day's grid numbers that hold its last digit triads, kept open 14 days</span></summary>
@@ -470,6 +474,9 @@ table.twg th.c, table.twg td.c{text-align:center;padding:4px 3px}
 <script src="bf-1.js"></script>
 <script src="sys-1.js"></script>
 <script src="grid-1.js"></script>
+<script>window.GA_CFG = { N:5, seq:() => SEQ, name:c => nm(c), look:n => openLook(n), today:() => todayCT() };
+window.gaPlayBoxes = (n, iso) => window.gaBuild ? window.gaBuild(n, iso, [], 12, null, null).list.map(x => x.n.split('').sort().join('')) : [];</script>
+<script src="garun-1.js"></script>
 
 
 </body></html>
