@@ -10,6 +10,7 @@ window.CONS_CFG = { N:3, _c:new Map(), weak:['B'],   /* Book convergence's top t
       try{ const mid = [...before].reverse().find(x => x.s === 'm') || before[before.length-1]; add('R', 'GA Rundown play list', window.gaBuild(mid.n, D, [], 12, st, null).list.map(x => x.n), true); }catch(e){}
       try{ const fill = (document.getElementById('grDir')||{}).value || 'ring'; add('X', 'Master Grid Top 10', window.gridBuild(before[before.length-1].n, fill, st).ranked.slice(0, 10).map(e => e.n), true); }catch(e){}
     }
+    if(st && window.vtracDue){ try{ add('T', 'VTrac due (3 longest-out patterns)', window.vtracDue(st, past ? D : undefined, 3).flatMap(r => r.nums)); }catch(e){} }
     try{ const ds = dsDateSum(D, dsWithYear()); add('S', 'Date Sum '+ds.sum+' (its group)', Object.values(dsList(3, ds.sum, true).byWays).flat()); }catch(e){}
     const sel = document.getElementById('dsGroup'), keep = sel ? sel.value : null;
     for(const [k, mode, name] of [['D','pair','date sum pairs'],['L','last','last digit sum pairs']]){ if(sel) sel.value = mode; try{ add(k, name, dspHot(D, 12, false).slice(0, 12).map(x => x.k)); }catch(e){} }
